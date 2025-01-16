@@ -1,0 +1,107 @@
+﻿<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:controlzEx="urn:controlzex" xmlns:local="clr-namespace:UIShell.Controls" xmlns:sys="clr-namespace:System;assembly=System.Runtime">
+    <sys:String x:Key="CountdownTimerTitle">倒计时器</sys:String>
+    <sys:String x:Key="StartButtonContent">开始</sys:String>
+    <sys:String x:Key="PauseButtonContent">暂停</sys:String>
+    <sys:String x:Key="ResetButtonContent">重置</sys:String>
+    <sys:String x:Key="FinishMessage">时间到！</sys:String>
+
+    <Style TargetType="local:TimerPopup">
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="local:TimerPopup">
+                    <Popup x:Name="PART_Popup" AllowsTransparency="True" IsOpen="{TemplateBinding IsOpen}" Placement="{TemplateBinding IsOpen}" StaysOpen="False">
+                        <Border x:Name="border" Padding="10" Background="#FF2D2D30" BorderBrush="Black" BorderThickness="1" CornerRadius="10">
+                            <Border.RenderTransform>
+                                <TransformGroup>
+                                    <ScaleTransform />
+                                    <TranslateTransform />
+                                </TransformGroup>
+                            </Border.RenderTransform>
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="*" />
+                                    <RowDefinition Height="Auto" />
+                                </Grid.RowDefinitions>
+                                <TextBlock HorizontalAlignment="Center" FontSize="18" FontWeight="Bold" Foreground="White" Text="{DynamicResource CountdownTimerTitle}" />
+                                <StackPanel Grid.Row="1" VerticalAlignment="Center">
+                                    <TextBlock HorizontalAlignment="Center" FontSize="24" FontWeight="Bold" Foreground="White" Text="{TemplateBinding CountdownText}" />
+                                    <ProgressBar x:Name="progressBar" Height="10" Margin="10" Maximum="100" Minimum="0" />
+                                </StackPanel>
+                                <StackPanel Grid.Row="2" HorizontalAlignment="Center" Orientation="Vertical">
+                                    <StackPanel HorizontalAlignment="Center" Orientation="Horizontal">
+                                        <TextBlock Margin="0,0,10,0" VerticalAlignment="Center" Text="年" />
+                                        <Button Command="{TemplateBinding YearUpCommand}" Content="▲" />
+                                        <TextBlock MinWidth="50" HorizontalAlignment="Center" VerticalAlignment="Center" Text="{Binding TargetTime, StringFormat={}{0:yyyy}, RelativeSource={RelativeSource TemplatedParent}}" TextAlignment="Center" />
+                                        <Button Command="{TemplateBinding YearDownCommand}" Content="▼" />
+                                    </StackPanel>
+                                    <StackPanel Margin="0,10,0,0" HorizontalAlignment="Center" Orientation="Horizontal">
+                                        <TextBlock Margin="0,0,10,0" VerticalAlignment="Center" Text="月" />
+                                        <Button Command="{TemplateBinding MonthUpCommand}" Content="▲" />
+                                        <TextBlock MinWidth="50" HorizontalAlignment="Center" VerticalAlignment="Center" Text="{Binding TargetTime, StringFormat={}{0:MM}, RelativeSource={RelativeSource TemplatedParent}}" TextAlignment="Center" />
+                                        <Button Command="{TemplateBinding MonthDownCommand}" Content="▼" />
+                                    </StackPanel>
+                                    <StackPanel Margin="0,10,0,0" HorizontalAlignment="Center" Orientation="Horizontal">
+                                        <TextBlock Margin="0,0,10,0" VerticalAlignment="Center" Text="日" />
+                                        <Button Command="{TemplateBinding DayUpCommand}" Content="▲" />
+                                        <TextBlock MinWidth="50" HorizontalAlignment="Center" VerticalAlignment="Center" Text="{Binding TargetTime, StringFormat={}{0:dd}, RelativeSource={RelativeSource TemplatedParent}}" TextAlignment="Center" />
+                                        <Button Command="{TemplateBinding DayDownCommand}" Content="▼" />
+                                    </StackPanel>
+                                    <StackPanel Margin="0,10,0,0" HorizontalAlignment="Center" Orientation="Horizontal">
+                                        <TextBlock Margin="0,0,10,0" VerticalAlignment="Center" Text="时" />
+                                        <Button Command="{TemplateBinding HourUpCommand}" Content="▲" />
+                                        <TextBlock MinWidth="50" HorizontalAlignment="Center" VerticalAlignment="Center" Text="{Binding TargetTime, StringFormat={}{0:HH}, RelativeSource={RelativeSource TemplatedParent}}" TextAlignment="Center" />
+                                        <Button Command="{TemplateBinding HourDownCommand}" Content="▼" />
+                                    </StackPanel>
+                                    <StackPanel Margin="0,10,0,0" HorizontalAlignment="Center" Orientation="Horizontal">
+                                        <TextBlock Margin="0,0,10,0" VerticalAlignment="Center" Text="分" />
+                                        <Button Command="{TemplateBinding MinuteUpCommand}" Content="▲" />
+                                        <TextBlock MinWidth="50" HorizontalAlignment="Center" VerticalAlignment="Center" Text="{Binding TargetTime, StringFormat={}{0:mm}, RelativeSource={RelativeSource TemplatedParent}}" TextAlignment="Center" />
+                                        <Button Command="{TemplateBinding MinuteDownCommand}" Content="▼" />
+                                    </StackPanel>
+                                    <StackPanel Margin="0,10,0,0" HorizontalAlignment="Center" Orientation="Horizontal">
+                                        <TextBlock Margin="0,0,10,0" VerticalAlignment="Center" Text="秒" />
+                                        <Button Command="{TemplateBinding SecondUpCommand}" Content="▲" />
+                                        <TextBlock MinWidth="50" HorizontalAlignment="Center" VerticalAlignment="Center" Text="{Binding TargetTime, StringFormat={}{0:ss}, RelativeSource={RelativeSource TemplatedParent}}" TextAlignment="Center" />
+                                        <Button Command="{TemplateBinding SecondDownCommand}" Content="▼" />
+                                    </StackPanel>
+                                    <StackPanel Margin="0,10,0,0" HorizontalAlignment="Center" Orientation="Horizontal">
+                                        <Button Margin="5" Command="{TemplateBinding StartCommand}" Content="{DynamicResource StartButtonContent}" />
+                                        <Button Margin="5" Command="{TemplateBinding PauseCommand}" Content="{DynamicResource PauseButtonContent}" />
+                                        <Button Margin="5" Command="{TemplateBinding ResetCommand}" Content="{DynamicResource ResetButtonContent}" />
+                                    </StackPanel>
+                                </StackPanel>
+                            </Grid>
+                            <VisualStateManager.VisualStateGroups>
+                                <VisualStateGroup Name="TimerStates">
+                                    <VisualState Name="Normal" />
+                                    <VisualState Name="Warning">
+                                        <Storyboard>
+                                            <ColorAnimation AutoReverse="True" RepeatBehavior="Forever" Storyboard.TargetName="border" Storyboard.TargetProperty="(Border.Background).(SolidColorBrush.Color)" To="Red" Duration="0:0:0.5" />
+                                        </Storyboard>
+                                    </VisualState>
+                                </VisualStateGroup>
+                                <VisualStateGroup Name="VisibilityStates">
+                                    <VisualState Name="Open">
+                                        <Storyboard>
+                                            <DoubleAnimation Storyboard.TargetName="PART_Popup" Storyboard.TargetProperty="Opacity" From="0" To="1" Duration="0:0:0.3" />
+                                            <DoubleAnimation Storyboard.TargetName="border" Storyboard.TargetProperty="(UIElement.RenderTransform).(TransformGroup.Children)[0].(ScaleTransform.ScaleX)" From="0" To="1" Duration="0:0:0.3" />
+                                            <DoubleAnimation Storyboard.TargetName="border" Storyboard.TargetProperty="(UIElement.RenderTransform).(TransformGroup.Children)[0].(ScaleTransform.ScaleY)" From="0" To="1" Duration="0:0:0.3" />
+                                        </Storyboard>
+                                    </VisualState>
+                                    <VisualState Name="Closed">
+                                        <Storyboard>
+                                            <DoubleAnimation Storyboard.TargetName="PART_Popup" Storyboard.TargetProperty="Opacity" From="1" To="0" Duration="0:0:0.3" />
+                                            <DoubleAnimation Storyboard.TargetName="border" Storyboard.TargetProperty="(UIElement.RenderTransform).(TransformGroup.Children)[0].(ScaleTransform.ScaleX)" From="1" To="0" Duration="0:0:0.3" />
+                                            <DoubleAnimation Storyboard.TargetName="border" Storyboard.TargetProperty="(UIElement.RenderTransform).(TransformGroup.Children)[0].(ScaleTransform.ScaleY)" From="1" To="0" Duration="0:0:0.3" />
+                                        </Storyboard>
+                                    </VisualState>
+                                </VisualStateGroup>
+                            </VisualStateManager.VisualStateGroups>
+                        </Border>
+                    </Popup>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+</ResourceDictionary>
