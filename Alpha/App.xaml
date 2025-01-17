@@ -6,6 +6,8 @@
             <converters:StatusToColorConverter x:Key="StatusToIconConverter" />
             <converters:CheckResultColorConverter x:Key="CheckResultColorConverter" />
             <converters:NullToVisibilityConverter x:Key="NullToVisibilityConverter" />
+            <converters:ProgressConverter x:Key="ProgressConverter" />
+            <converters:LevelColorConverter x:Key="LevelColorConverter" />
             <converters:AlphaResultToColorConverter x:Key="AlphaResultToColorConverter" />
             <converters:AlphaResultToTextConverter x:Key="AlphaResultToTextConverter" />
             <converters:IgnoreStatusVisibilityMultiConverter x:Key="IgnoreStatusVisibilityMultiConverter" />

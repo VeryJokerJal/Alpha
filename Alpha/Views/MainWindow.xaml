@@ -87,7 +87,92 @@
     </MetroWindow.Resources>
 
     <Grid>
-        <TabControl>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+        <Border Grid.Row="0" Margin="5" Padding="10" CornerRadius="10" DataContext="{Binding Competition}" Visibility="{Binding DataContext.Competition, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource NullToVisibilityConverter}}">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+
+                <!--  顶部信息  -->
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+
+                    <!--  左侧：比赛信息  -->
+                    <StackPanel VerticalAlignment="Center" Orientation="Horizontal">
+                        <TextBlock FontSize="24" FontWeight="SemiBold" Foreground="#FFEAEAEA" Text="{Binding Leaderboard.User}" />
+                        <Border Margin="12,0,0,0" Padding="8,4" VerticalAlignment="Center" Background="{Binding Leaderboard.Level, Converter={StaticResource LevelColorConverter}}" CornerRadius="5">
+                            <TextBlock FontSize="12" Foreground="Black" Text="{Binding Leaderboard.Level}" />
+                        </Border>
+                    </StackPanel>
+
+                    <!--  右侧：排名信息  -->
+                    <StackPanel Grid.Column="2" VerticalAlignment="Center" Orientation="Horizontal">
+                        <StackPanel Margin="0,0,24,0">
+                            <TextBlock FontSize="12" Foreground="#FF808080" Text="排名" />
+                            <TextBlock FontSize="20" FontWeight="Bold" Foreground="#FFEAEAEA" Text="{Binding Leaderboard.Rank}" />
+                        </StackPanel>
+                        <StackPanel Margin="0,0,24,0">
+                            <TextBlock FontSize="12" Foreground="#FF808080" Text="分数" />
+                            <TextBlock FontSize="20" FontWeight="Bold" Foreground="#FFEAEAEA" Text="{Binding Leaderboard.Score, StringFormat=N0}" />
+                        </StackPanel>
+                        <StackPanel>
+                            <TextBlock FontSize="12" Foreground="#FF808080" Text="Alpha 数量" />
+                            <TextBlock FontSize="20" FontWeight="Bold" Foreground="#FFEAEAEA" Text="{Binding Leaderboard.Alphas}" />
+                        </StackPanel>
+                    </StackPanel>
+                </Grid>
+
+                <!--  进度条  -->
+                <Grid Grid.Row="1" Margin="0,20,0,0">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+
+                    <!--  进度标签  -->
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+
+                        <TextBlock FontSize="12" Foreground="#FF808080" Text="{Binding Progress.Score.Bottom, StringFormat=N0}" />
+                        <StackPanel Grid.Column="1" HorizontalAlignment="Center" Orientation="Horizontal">
+                            <TextBlock FontSize="14" FontWeight="SemiBold" Foreground="{Binding Leaderboard.Level, Converter={StaticResource LevelColorConverter}}" Text="{Binding Leaderboard.Level}" />
+                            <TextBlock Margin="5,0" FontSize="14" Foreground="#FF808080" Text="→" />
+                            <TextBlock FontSize="14" FontWeight="SemiBold" Foreground="{Binding Progress.Level, Converter={StaticResource LevelColorConverter}}" Text="{Binding Progress.Level}" />
+                        </StackPanel>
+                        <TextBlock Grid.Column="2" FontSize="12" Foreground="#FF808080" Text="{Binding Progress.Score.Top, StringFormat=N0}" />
+                    </Grid>
+
+                    <!--  进度条  -->
+                    <Grid Grid.Row="1" Height="6" Margin="0,8,0,0">
+                        <Border Background="#FF404040" CornerRadius="3" />
+                        <Border HorizontalAlignment="Left" Background="{Binding Progress.Level, Converter={StaticResource LevelColorConverter}}" CornerRadius="3">
+                            <Border.Width>
+                                <MultiBinding Converter="{StaticResource ProgressConverter}">
+                                    <Binding Path="Progress.Score.Bottom" />
+                                    <Binding Path="Progress.Score.Top" />
+                                    <Binding Path="Leaderboard.Score" />
+                                    <Binding Path="ActualWidth" RelativeSource="{RelativeSource AncestorType=Grid}" />
+                                </MultiBinding>
+                            </Border.Width>
+                        </Border>
+                    </Grid>
+                </Grid>
+            </Grid>
+        </Border>
+        <TabControl Grid.Row="1">
             <TabItem Padding="20,10" Header="提交">
                 <Grid Margin="10">
                     <Grid.RowDefinitions>
@@ -411,6 +496,15 @@
                                 <TextBlock FontSize="12" Foreground="#A0A0A0" Text="地区" />
                                 <ComboBox Margin="0,5,0,0" Padding="5" HorizontalAlignment="Stretch" SelectedIndex="0" Text="{Binding SimulationSettings.Region}">
                                     <ComboBoxItem Content="USA" />
+                                    <ComboBoxItem Content="CHN" />
+                                    <ComboBoxItem Content="TWN" />
+                                    <ComboBoxItem Content="ASI" />
+                                    <ComboBoxItem Content="HKG" />
+                                    <ComboBoxItem Content="KOR" />
+                                    <ComboBoxItem Content="EUR" />
+                                    <ComboBoxItem Content="GLB" />
+                                    <ComboBoxItem Content="AMR" />
+                                    <ComboBoxItem Content="JPN" />
                                 </ComboBox>
                             </StackPanel>
 

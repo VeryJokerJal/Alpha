@@ -9,6 +9,7 @@ using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.Json;
 using System.Windows.Input;
+using System.Windows.Threading;
 using Alpha.Helpers;
 using Alpha.Models;
 using Alpha.Views;
@@ -52,6 +53,8 @@ namespace Alpha.ViewModels
         public bool IsKnowledgeLoading { get; set; }
         [Reactive]
         public SimulationSettingsModel SimulationSettings { get; set; } = new SimulationSettingsModel();
+        [Reactive]
+        public CompetitionResponse? Competition { get; set; }
 
         private bool _ignoreWarnings;
         public bool IgnoreWarnings
@@ -136,6 +139,7 @@ namespace Alpha.ViewModels
         private HttpClient? _httpClient;
         private List<SimulationData>? _alphaList;
         private CancellationTokenSource? _cts;
+        private DispatcherTimer? dispatcherTimer;
 
         public MainViewModel()
         {
@@ -158,8 +162,18 @@ namespace Alpha.ViewModels
 
         private void Initialize()
         {
+            dispatcherTimer = new()
+            {
+                Interval = TimeSpan.FromMinutes(30)
+            };
+            dispatcherTimer.Tick += GetCompetitionTimer_Tick;
             TestSummary = "未回测";
             PreventSleep();
+        }
+
+        private void GetCompetitionTimer_Tick(object? sender, EventArgs e)
+        {
+            _ = LoadCompetition();
         }
 
         private Unit ViewAlphaDetails(AlphaResponse response)
@@ -167,6 +181,17 @@ namespace Alpha.ViewModels
             AlphaInfoWindow alphaDetailsViewModel = new(response);
             alphaDetailsViewModel.Show();
             return default;
+        }
+
+        private async Task LoadCompetition()
+        {
+            if (_httpClient == null || _httpClientHandler == null || WorldQuantAccountLoginResponse == null)
+            {
+                return;
+            }
+
+            string json = await _httpClient.GetStringAsync("https://api.worldquantbrain.com/competitions/challenge");
+            Competition = JsonConvert.DeserializeObject<CompetitionResponse>(json);
         }
 
         private void UpdateStatus()
@@ -275,7 +300,7 @@ namespace Alpha.ViewModels
 
             Stopwatch stopwatch = Stopwatch.StartNew();
             SimulationCompletedDatas = [];
-            SemaphoreSlim semaphore = WorldQuantAccountLoginResponse.Permissions.Contains("CONSULTANT") ? new(100) : new(3);
+            SemaphoreSlim semaphore = WorldQuantAccountLoginResponse.Permissions.Contains("CONSULTANT") ? new(10) : new(3);
             List<int> incoming = [];
 
             List<Task> tasks = _alphaList.Select(async item =>
@@ -360,12 +385,12 @@ namespace Alpha.ViewModels
                                     AlphaResponse? alpha = JsonConvert.DeserializeObject<AlphaResponse>(alphaResponseContent);
                                     result.Regular ??= item.Regular;
                                     result.AlphaResult = alpha?.Id == null ? null : alpha;
-                                    result.Time = taskStopwatch.Elapsed.FormatTime();
-                                    SimulationCompletedDatas.Add(result);
                                     if (AutoSubmit && alpha?.Is?.Checks?.Any(check => check.Result?.ToUpper()?.Equals("FAIL", StringComparison.OrdinalIgnoreCase) == true) == false)
                                     {
                                         _ = await SubmitAlpha(result.Alpha);
                                     }
+                                    result.Time = taskStopwatch.Elapsed.FormatTime();
+                                    SimulationCompletedDatas.Add(result);
                                     break;
                                 }
                             }
@@ -518,8 +543,8 @@ namespace Alpha.ViewModels
                 ];
                 List<string> _days =
                 [
-                    "200",
-                    "20"
+                    "300",
+                    "30"
                 ];
                 List<string> alphaExpressions = [];
                 List<string> companyFundamentals = await GetDataFields(new SearchScope(SimulationSettings.Region?.ToUpper(), SimulationSettings.DecisionDelay?.ToUpper(), SimulationSettings.Liquidity?.ToUpper(), SimulationSettings.Liquidity?.ToUpper()), datasetId: "fundamental6", token: token);
@@ -607,6 +632,7 @@ namespace Alpha.ViewModels
                 string responseBody = await response.Content.ReadAsStringAsync();
                 WorldQuantAccountLoginResponse = JsonConvert.DeserializeObject<WorldQuantAccountLoginResponse>(responseBody);
                 Debug.WriteLine("Login successful: " + responseBody);
+                await LoadCompetition();
                 await LoadKnowledge();
             }
             catch (HttpRequestException)
