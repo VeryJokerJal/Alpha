@@ -1,4 +1,5 @@
 using Alpha.ViewModels;
+using Newtonsoft.Json;
 using ReactiveUI.Fody.Helpers;
 
 namespace Alpha.Models
@@ -23,12 +24,16 @@ namespace Alpha.Models
         public string? WarningThrowing { get; set; }
         [Reactive]
         public string? MissingValueHandling { get; set; }
+        [JsonProperty]
         [Reactive]
         public string? LinearDecayWeightedAverage { get; set; } = "4";
+        [JsonProperty]
         [Reactive]
         public string? TruncationWeight { get; set; } = "0.08";
+        [JsonProperty]
         [Reactive]
         public string? TimeEvaluationYear { get; set; } = "1";
+        [JsonProperty]
         [Reactive]
         public string? TimeEvaluationMonth { get; set; } = "0";
     }

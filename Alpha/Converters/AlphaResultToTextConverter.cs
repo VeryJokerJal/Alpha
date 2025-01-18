@@ -16,8 +16,7 @@ namespace Alpha.Converters
                 {
                     return !checks.Any(delegate (AlphaCheck check)
                     {
-                        string? result;
-                        result = check.Result;
+                        string? result = check.Result;
                         return result != null && (result.ToUpper()?.Equals("FAIL", StringComparison.OrdinalIgnoreCase)).GetValueOrDefault();
                     })
                         ? "已通过"

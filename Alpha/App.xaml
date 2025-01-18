@@ -10,6 +10,7 @@
             <converters:LevelColorConverter x:Key="LevelColorConverter" />
             <converters:AlphaResultToColorConverter x:Key="AlphaResultToColorConverter" />
             <converters:AlphaResultToTextConverter x:Key="AlphaResultToTextConverter" />
+            <converters:SubmitToColorConverter x:Key="SubmitToColorConverter" />
             <converters:IgnoreStatusVisibilityMultiConverter x:Key="IgnoreStatusVisibilityMultiConverter" />
             <ResourceDictionary.MergedDictionaries>
                 <XamlUIResources />

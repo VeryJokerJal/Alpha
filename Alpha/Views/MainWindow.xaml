@@ -84,6 +84,68 @@
                 </Setter.Value>
             </Setter>
         </Style>
+
+        <Style x:Key="CardStyle" TargetType="Border">
+            <Setter Property="Background" Value="#FF252525" />
+            <Setter Property="BorderBrush" Value="#404040" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="10" />
+            <Setter Property="Padding" Value="15" />
+            <Setter Property="Margin" Value="0,0,0,20" />
+        </Style>
+
+        <Style x:Key="HeaderTextStyle" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="#FFEAEAEA" />
+            <Setter Property="FontSize" Value="16" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Margin" Value="0,0,0,20" />
+        </Style>
+
+        <Style x:Key="SubHeaderTextStyle" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="#FFD0D0D0" />
+            <Setter Property="FontSize" Value="14" />
+            <Setter Property="FontWeight" Value="Medium" />
+            <Setter Property="Margin" Value="0,0,0,10" />
+        </Style>
+
+        <Style x:Key="LabelStyle" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="#FF808080" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="Margin" Value="0,0,8,0" />
+        </Style>
+
+        <Style x:Key="ValueStyle" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="#FFE0E0E0" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="Margin" Value="0,0,0,8" />
+        </Style>
+
+        <Style x:Key="MetricLabelStyle" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="#FF808080" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="Margin" Value="0,0,0,4" />
+        </Style>
+
+        <Style x:Key="MetricValueStyle" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="#FFE0E0E0" />
+            <Setter Property="FontSize" Value="16" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Margin" Value="0,0,0,16" />
+        </Style>
+
+        <Style x:Key="TagStyle" TargetType="Border">
+            <Setter Property="Background" Value="#FF2D2D2D" />
+            <Setter Property="CornerRadius" Value="6" />
+            <Setter Property="Padding" Value="12,6" />
+            <Setter Property="Margin" Value="0,0,8,8" />
+        </Style>
+
+        <Style x:Key="CheckItemStyle" TargetType="Border">
+            <Setter Property="Background" Value="#FF2D2D2D" />
+            <Setter Property="CornerRadius" Value="8" />
+            <Setter Property="Padding" Value="12" />
+            <Setter Property="Margin" Value="0,0,0,8" />
+        </Style>
     </MetroWindow.Resources>
 
     <Grid>
@@ -191,11 +253,11 @@
                         <StackPanel Grid.Row="0">
                             <StackPanel Orientation="Horizontal">
                                 <TextBlock Text="回测模式" />
-                                <TextBlock Margin="5,0,0,0" Opacity="0.4" Text="（此模式会根据软件的策略算法来进行回测）" Visibility="{Binding BackTestModeIndex, Converter={StaticResource UniversalComparisonConverter}, ConverterParameter=0}" />
-                                <TextBlock Margin="5,0,0,0" Opacity="0.4" Text="（此模式会使用原始功能，不会额外添加任何指令以及策略，也就是官网的回测）" Visibility="{Binding BackTestModeIndex, Converter={StaticResource UniversalComparisonConverter}, ConverterParameter=1}" />
-                                <TextBlock Margin="5,0,0,0" Opacity="0.4" Text="（此模式会根据您输入的指令来进行回测，会产生额外的策略。例如：group_neutralize(ts_av_diff($1, y), z)，之后会对$1进行替换成x）" Visibility="{Binding BackTestModeIndex, Converter={StaticResource UniversalComparisonConverter}, ConverterParameter=2}" />
+                                <TextBlock Margin="5,0,0,0" Opacity="0.4" Text="（此模式会根据软件的策略算法来进行回测）" Visibility="{Binding UserSettings.BackTestModeIndex, Converter={StaticResource UniversalComparisonConverter}, ConverterParameter=0}" />
+                                <TextBlock Margin="5,0,0,0" Opacity="0.4" Text="（此模式会使用原始功能，不会额外添加任何指令以及策略，也就是官网的回测）" Visibility="{Binding UserSettings.BackTestModeIndex, Converter={StaticResource UniversalComparisonConverter}, ConverterParameter=1}" />
+                                <TextBlock Margin="5,0,0,0" Opacity="0.4" Text="（此模式会根据您输入的指令来进行回测，会产生额外的策略。例如：group_neutralize(ts_av_diff($1, y), z)，之后会对$1进行替换成x）" Visibility="{Binding UserSettings.BackTestModeIndex, Converter={StaticResource UniversalComparisonConverter}, ConverterParameter=2}" />
                             </StackPanel>
-                            <ComboBox Margin="0,5,0,0" Padding="5" HorizontalAlignment="Stretch" SelectedIndex="{Binding BackTestModeIndex}">
+                            <ComboBox Margin="0,5,0,0" Padding="5" HorizontalAlignment="Stretch" SelectedIndex="{Binding UserSettings.BackTestModeIndex}">
                                 <ComboBoxItem Content="默认" />
                                 <ComboBoxItem Content="原始" />
                                 <ComboBoxItem Content="指令" />
@@ -206,7 +268,7 @@
                             </DockPanel>
                         </StackPanel>
 
-                        <Grid Grid.Row="1" Margin="0,10,0,0" Visibility="{Binding BackTestModeIndex, Converter={StaticResource InverseUniversalComparisonConverter}, ConverterParameter=0}">
+                        <Grid Grid.Row="1" Margin="0,10,0,0" Visibility="{Binding UserSettings.BackTestModeIndex, Converter={StaticResource InverseUniversalComparisonConverter}, ConverterParameter=0}">
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto" />
                                 <RowDefinition Height="*" MinHeight="200" />
@@ -217,15 +279,15 @@
                     </Grid>
                     <TextBlock Grid.Row="1" Margin="0,10,0,5" HorizontalAlignment="Left" VerticalAlignment="Center" Foreground="#A0A0A0" Text="{Binding TestSummary}" />
                     <StackPanel Grid.Row="2" Margin="0,5" Orientation="Horizontal">
-                        <CheckBox Content="忽略警告" IsChecked="{Binding IgnoreWarnings}" />
-                        <CheckBox Margin="10,0,0,0" Content="忽略错误" IsChecked="{Binding IgnoreErrors}" />
-                        <CheckBox Margin="10,0,0,0" Content="忽略未通过" IsChecked="{Binding IgnoreStop}" />
-                        <CheckBox Margin="10,0,0,0" Content="忽略已通过" IsChecked="{Binding IgnorePasses}" />
-                        <CheckBox Margin="10,0,0,0" Content="忽略已完成" IsChecked="{Binding IgnoreCompleted}" />
-                        <CheckBox Margin="10,0,0,0" Content="忽略失败" IsChecked="{Binding IgnoreFailures}" />
+                        <CheckBox Content="忽略警告" IsChecked="{Binding UserSettings.IgnoreWarnings}" />
+                        <CheckBox Margin="10,0,0,0" Content="忽略错误" IsChecked="{Binding UserSettings.IgnoreErrors}" />
+                        <CheckBox Margin="10,0,0,0" Content="忽略未通过" IsChecked="{Binding UserSettings.IgnoreStop}" />
+                        <CheckBox Margin="10,0,0,0" Content="忽略已通过" IsChecked="{Binding UserSettings.IgnorePasses}" />
+                        <CheckBox Margin="10,0,0,0" Content="忽略已完成" IsChecked="{Binding UserSettings.IgnoreCompleted}" />
+                        <CheckBox Margin="10,0,0,0" Content="忽略失败" IsChecked="{Binding UserSettings.IgnoreFailures}" />
                     </StackPanel>
                     <StackPanel Grid.Row="3" Margin="0,5" Orientation="Horizontal">
-                        <CheckBox Content="自动提交" IsChecked="{Binding AutoSubmit}" />
+                        <CheckBox Content="自动提交" IsChecked="{Binding UserSettings.AutoSubmit}" />
                     </StackPanel>
                     <Border Grid.Row="4" Background="#FF292929" BorderBrush="#FF464646" BorderThickness="1" CornerRadius="5">
                         <ScrollViewer VerticalScrollBarVisibility="Auto">
@@ -444,7 +506,7 @@
                 </Grid>
             </TabItem>
 
-            <TabItem Header="登录与设置">
+            <TabItem Padding="20,10" Header="登录与设置">
                 <Grid Margin="10">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />
@@ -461,9 +523,9 @@
                         <StackPanel Grid.Row="0" Orientation="Horizontal">
                             <StackPanel>
                                 <TextBlock Margin="0,0,0,5" VerticalAlignment="Center" Text="邮箱" />
-                                <TextBox Width="200" Margin="0,0,0,5" Padding="5" VerticalAlignment="Stretch" Text="{Binding Email, UpdateSourceTrigger=PropertyChanged}" />
+                                <TextBox Width="200" Margin="0,0,0,5" Padding="5" VerticalAlignment="Stretch" Text="{Binding UserSettings.Email, UpdateSourceTrigger=PropertyChanged}" />
                                 <TextBlock Margin="0,0,0,5" VerticalAlignment="Center" Text="密码" />
-                                <PasswordBox Width="200" Padding="5" VerticalAlignment="Stretch" helpers:PasswordBoxHelper.BindPassword="True" helpers:PasswordBoxHelper.BoundPassword="{Binding Password, Mode=TwoWay}" />
+                                <PasswordBox Width="200" Padding="5" VerticalAlignment="Stretch" helpers:PasswordBoxHelper.BindPassword="True" helpers:PasswordBoxHelper.BoundPassword="{Binding UserSettings.Password, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
                             </StackPanel>
                             <Button Margin="10,0,0,0" Padding="20,5" VerticalAlignment="Bottom" Command="{Binding LoginCommand}" Content="登录" />
                             <Button Margin="10,0,0,0" Padding="20,5" VerticalAlignment="Bottom" Command="{Binding GetKnowledgeCommand}" Content="获取知识库" />
@@ -482,19 +544,19 @@
                             </Grid.RowDefinitions>
                             <StackPanel Grid.Row="0" Grid.Column="0">
                                 <TextBlock FontSize="12" Foreground="#A0A0A0" Text="编程语言" />
-                                <ComboBox Margin="0,5,0,0" Padding="5" HorizontalAlignment="Stretch" SelectedIndex="0" Text="{Binding SimulationSettings.ProgrammingLanguage}">
+                                <ComboBox Margin="0,5,0,0" Padding="5" HorizontalAlignment="Stretch" SelectedIndex="{Binding UserSettings.ProgrammingLanguageIndex}" Text="{Binding UserSettings.SimulationSettings.ProgrammingLanguage}">
                                     <ComboBoxItem Content="Fast Expression" />
                                 </ComboBox>
                             </StackPanel>
                             <StackPanel Grid.Row="0" Grid.Column="1" Margin="10,0,0,0">
                                 <TextBlock FontSize="12" Foreground="#A0A0A0" Text="资产类别" />
-                                <ComboBox Margin="0,5,0,0" Padding="5" HorizontalAlignment="Stretch" SelectedIndex="0" Text="{Binding SimulationSettings.AssetClass}">
+                                <ComboBox Margin="0,5,0,0" Padding="5" HorizontalAlignment="Stretch" SelectedIndex="{Binding UserSettings.AssetClassIndex}" Text="{Binding UserSettings.SimulationSettings.AssetClass}">
                                     <ComboBoxItem Content="Equity" />
                                 </ComboBox>
                             </StackPanel>
                             <StackPanel Grid.Row="0" Grid.Column="2" Margin="10,0,0,0">
                                 <TextBlock FontSize="12" Foreground="#A0A0A0" Text="地区" />
-                                <ComboBox Margin="0,5,0,0" Padding="5" HorizontalAlignment="Stretch" SelectedIndex="0" Text="{Binding SimulationSettings.Region}">
+                                <ComboBox Margin="0,5,0,0" Padding="5" HorizontalAlignment="Stretch" SelectedIndex="{Binding UserSettings.RegionIndex}" Text="{Binding UserSettings.SimulationSettings.Region}">
                                     <ComboBoxItem Content="USA" />
                                     <ComboBoxItem Content="CHN" />
                                     <ComboBoxItem Content="TWN" />
@@ -510,7 +572,7 @@
 
                             <StackPanel Grid.Row="1" Grid.Column="0" Margin="0,5,0,0">
                                 <TextBlock FontSize="12" Foreground="#A0A0A0" Text="流动性" />
-                                <ComboBox Margin="0,5,0,0" Padding="5" HorizontalAlignment="Stretch" SelectedIndex="0" Text="{Binding SimulationSettings.Liquidity}">
+                                <ComboBox Margin="0,5,0,0" Padding="5" HorizontalAlignment="Stretch" SelectedIndex="{Binding UserSettings.LiquidityIndex}" Text="{Binding UserSettings.SimulationSettings.Liquidity}">
                                     <ComboBoxItem Content="TOP3000" />
                                     <ComboBoxItem Content="TOP1000" />
                                     <ComboBoxItem Content="TOP500" />
@@ -520,14 +582,14 @@
                             </StackPanel>
                             <StackPanel Grid.Row="1" Grid.Column="1" Margin="10,5,0,0">
                                 <TextBlock FontSize="12" Foreground="#A0A0A0" Text="决策延迟" />
-                                <ComboBox Margin="0,5,0,0" Padding="5" HorizontalAlignment="Stretch" SelectedIndex="0" Text="{Binding SimulationSettings.DecisionDelay}">
+                                <ComboBox Margin="0,5,0,0" Padding="5" HorizontalAlignment="Stretch" SelectedIndex="{Binding UserSettings.DecisionDelayIndex}" Text="{Binding UserSettings.SimulationSettings.DecisionDelay}">
                                     <ComboBoxItem Content="1" />
                                     <ComboBoxItem Content="0" />
                                 </ComboBox>
                             </StackPanel>
                             <StackPanel Grid.Row="1" Grid.Column="2" Margin="10,5,0,0">
                                 <TextBlock FontSize="12" Foreground="#A0A0A0" Text="Alpha 权重" />
-                                <ComboBox Margin="0,5,0,0" Padding="5" HorizontalAlignment="Stretch" SelectedIndex="0" Text="{Binding SimulationSettings.AlphaWeight}">
+                                <ComboBox Margin="0,5,0,0" Padding="5" HorizontalAlignment="Stretch" SelectedIndex="{Binding UserSettings.AlphaWeightIndex}" Text="{Binding UserSettings.SimulationSettings.AlphaWeight}">
                                     <ComboBoxItem Content="None" />
                                     <ComboBoxItem Content="Market" />
                                     <ComboBoxItem Content="Sector" />
@@ -538,20 +600,20 @@
 
                             <StackPanel Grid.Row="2" Grid.Column="0" Margin="0,5,0,0">
                                 <TextBlock FontSize="12" Foreground="#A0A0A0" Text="清洗数据" />
-                                <ComboBox Margin="0,5,0,0" Padding="5" HorizontalAlignment="Stretch" SelectedIndex="0" Text="{Binding SimulationSettings.DataCleaning}">
+                                <ComboBox Margin="0,5,0,0" Padding="5" HorizontalAlignment="Stretch" SelectedIndex="{Binding UserSettings.DataCleaningIndex}" Text="{Binding UserSettings.SimulationSettings.DataCleaning}">
                                     <ComboBoxItem Content="On" />
                                     <ComboBoxItem Content="Off" />
                                 </ComboBox>
                             </StackPanel>
                             <StackPanel Grid.Row="2" Grid.Column="1" Margin="10,5,0,0">
                                 <TextBlock FontSize="12" Foreground="#A0A0A0" Text="抛出警告" />
-                                <ComboBox Margin="0,5,0,0" Padding="5" HorizontalAlignment="Stretch" SelectedIndex="0" Text="{Binding SimulationSettings.WarningThrowing}">
+                                <ComboBox Margin="0,5,0,0" Padding="5" HorizontalAlignment="Stretch" SelectedIndex="{Binding UserSettings.WarningThrowingIndex}" Text="{Binding UserSettings.SimulationSettings.WarningThrowing}">
                                     <ComboBoxItem Content="Verify" />
                                 </ComboBox>
                             </StackPanel>
                             <StackPanel Grid.Row="2" Grid.Column="2" Margin="10,5,0,0">
                                 <TextBlock FontSize="12" Foreground="#A0A0A0" Text="处理缺失值" />
-                                <ComboBox Margin="0,5,0,0" Padding="5" HorizontalAlignment="Stretch" SelectedIndex="0" Text="{Binding SimulationSettings.MissingValueHandling}">
+                                <ComboBox Margin="0,5,0,0" Padding="5" HorizontalAlignment="Stretch" SelectedIndex="{Binding UserSettings.MissingValueHandlingIndex}" Text="{Binding UserSettings.SimulationSettings.MissingValueHandling}">
                                     <ComboBoxItem Content="On" />
                                     <ComboBoxItem Content="Off" />
                                 </ComboBox>
@@ -559,11 +621,11 @@
 
                             <StackPanel Grid.Row="3" Grid.Column="0" Margin="0,5,0,0">
                                 <TextBlock FontSize="12" Foreground="#A0A0A0" Text="线性递减加权平均" />
-                                <TextBox Margin="0,5,0,0" Padding="5" VerticalAlignment="Stretch" Text="{Binding SimulationSettings.LinearDecayWeightedAverage}" />
+                                <TextBox Margin="0,5,0,0" Padding="5" VerticalAlignment="Stretch" Text="{Binding UserSettings.SimulationSettings.LinearDecayWeightedAverage, UpdateSourceTrigger=PropertyChanged}" />
                             </StackPanel>
                             <StackPanel Grid.Row="3" Grid.Column="1" Margin="10,5,0,0">
                                 <TextBlock FontSize="12" Foreground="#A0A0A0" Text="截断权重" />
-                                <TextBox Margin="0,5,0,0" Padding="5" VerticalAlignment="Stretch" Text="{Binding SimulationSettings.TruncationWeight}" />
+                                <TextBox Margin="0,5,0,0" Padding="5" VerticalAlignment="Stretch" Text="{Binding UserSettings.SimulationSettings.TruncationWeight, UpdateSourceTrigger=PropertyChanged}" />
                             </StackPanel>
                             <StackPanel Grid.Row="3" Grid.Column="2" Margin="10,5,0,0">
                                 <Grid>
@@ -578,16 +640,194 @@
                                     <TextBlock Grid.Row="0" Grid.Column="0" FontSize="12" Foreground="#A0A0A0" Text="时间评估" />
                                     <DockPanel Grid.Row="1" Grid.Column="0">
                                         <TextBlock Margin="5,5,0,0" VerticalAlignment="Center" DockPanel.Dock="Right" Text="年" />
-                                        <TextBox Margin="0,5,0,0" Padding="5" VerticalAlignment="Stretch" Text="{Binding SimulationSettings.TimeEvaluationYear}" />
+                                        <TextBox Margin="0,5,0,0" Padding="5" VerticalAlignment="Stretch" Text="{Binding UserSettings.SimulationSettings.TimeEvaluationYear, UpdateSourceTrigger=PropertyChanged}" />
                                     </DockPanel>
                                     <DockPanel Grid.Row="1" Grid.Column="1" Margin="5,0,0,0">
                                         <TextBlock Margin="5,5,0,0" VerticalAlignment="Center" DockPanel.Dock="Right" Text="月" />
-                                        <TextBox Margin="0,5,0,0" Padding="5" VerticalAlignment="Stretch" Text="{Binding SimulationSettings.TimeEvaluationMonth}" />
+                                        <TextBox Margin="0,5,0,0" Padding="5" VerticalAlignment="Stretch" Text="{Binding UserSettings.SimulationSettings.TimeEvaluationMonth, UpdateSourceTrigger=PropertyChanged}" />
                                     </DockPanel>
                                 </Grid>
                             </StackPanel>
                         </Grid>
                     </Grid>
+                </Grid>
+            </TabItem>
+
+            <TabItem Padding="20,10" Header="Alpha 查询">
+                <Grid Margin="10">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+
+                    <StackPanel Grid.Row="0" Margin="0,0,0,20" Orientation="Horizontal">
+                        <StackPanel>
+                            <TextBlock Margin="0,0,0,5" VerticalAlignment="Center" Text="Alpha ID" />
+                            <TextBox Width="200" Padding="5" VerticalAlignment="Stretch" Text="{Binding AlphaQuery, UpdateSourceTrigger=PropertyChanged}" />
+                        </StackPanel>
+                        <Button Margin="10,0,0,0" Padding="20,5" VerticalAlignment="Bottom" Command="{Binding AlphaQueryCommand}" Content="查询" />
+                    </StackPanel>
+
+                    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Visibility="{Binding AlphaResponse, Converter={StaticResource NullToVisibilityConverter}}">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="2*" />
+                                <ColumnDefinition Width="1*" />
+                            </Grid.ColumnDefinitions>
+
+                            <!--  Left Column  -->
+                            <StackPanel>
+                                <!--  Code Card  -->
+                                <Border Style="{StaticResource CardStyle}">
+                                    <StackPanel>
+                                        <TextBlock Style="{StaticResource HeaderTextStyle}" Text="Alpha Expression" />
+                                        <Border Padding="16" Background="#FF1A1A1A" CornerRadius="8">
+                                            <TextBlock FontFamily="Consolas" Foreground="#FF00FF00" Text="{Binding AlphaResponse.Regular.Code}" TextWrapping="Wrap" />
+                                        </Border>
+                                    </StackPanel>
+                                </Border>
+
+                                <!--  Performance Metrics  -->
+                                <Border Style="{StaticResource CardStyle}">
+                                    <StackPanel>
+                                        <TextBlock Style="{StaticResource HeaderTextStyle}" Text="Performance Metrics" />
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="*" />
+                                            </Grid.ColumnDefinitions>
+
+                                            <!--  Key Metrics Column 1  -->
+                                            <StackPanel>
+                                                <TextBlock Style="{StaticResource MetricLabelStyle}" Text="PNL" />
+                                                <TextBlock Style="{StaticResource MetricValueStyle}" Text="{Binding AlphaResponse.Is.Pnl, StringFormat=N0}" />
+
+                                                <TextBlock Style="{StaticResource MetricLabelStyle}" Text="Sharpe" />
+                                                <TextBlock Style="{StaticResource MetricValueStyle}" Text="{Binding AlphaResponse.Is.Sharpe, StringFormat=N2}" />
+
+                                                <TextBlock Style="{StaticResource MetricLabelStyle}" Text="Returns" />
+                                                <TextBlock Style="{StaticResource MetricValueStyle}" Text="{Binding AlphaResponse.Is.Returns, StringFormat=P2}" />
+
+                                                <TextBlock Style="{StaticResource MetricLabelStyle}" Text="Long Count" />
+                                                <TextBlock Style="{StaticResource MetricValueStyle}" Text="{Binding AlphaResponse.Is.LongCount, StringFormat=N0}" />
+                                            </StackPanel>
+
+                                            <!--  Key Metrics Column 2  -->
+                                            <StackPanel Grid.Column="1">
+                                                <TextBlock Style="{StaticResource MetricLabelStyle}" Text="Drawdown" />
+                                                <TextBlock Style="{StaticResource MetricValueStyle}" Text="{Binding AlphaResponse.Is.Drawdown, StringFormat=P2}" />
+
+                                                <TextBlock Style="{StaticResource MetricLabelStyle}" Text="Turnover" />
+                                                <TextBlock Style="{StaticResource MetricValueStyle}" Text="{Binding AlphaResponse.Is.Turnover, StringFormat=P2}" />
+
+                                                <TextBlock Style="{StaticResource MetricLabelStyle}" Text="Margin" />
+                                                <TextBlock Style="{StaticResource MetricValueStyle}" Text="{Binding AlphaResponse.Is.Margin, StringFormat=P2}" />
+
+                                                <TextBlock Style="{StaticResource MetricLabelStyle}" Text="Short Count" />
+                                                <TextBlock Style="{StaticResource MetricValueStyle}" Text="{Binding AlphaResponse.Is.ShortCount, StringFormat=N0}" />
+                                            </StackPanel>
+
+                                            <!--  Key Metrics Column 3  -->
+                                            <StackPanel Grid.Column="2">
+                                                <TextBlock Style="{StaticResource MetricLabelStyle}" Text="Fitness" />
+                                                <TextBlock Style="{StaticResource MetricValueStyle}" Text="{Binding AlphaResponse.Is.Fitness, StringFormat=N2}" />
+
+                                                <TextBlock Style="{StaticResource MetricLabelStyle}" Text="Book Size" />
+                                                <TextBlock Style="{StaticResource MetricValueStyle}" Text="{Binding AlphaResponse.Is.BookSize, StringFormat=N0}" />
+
+                                                <TextBlock Style="{StaticResource MetricLabelStyle}" Text="Start Date" />
+                                                <TextBlock Style="{StaticResource MetricValueStyle}" Text="{Binding AlphaResponse.Is.StartDate, StringFormat=d}" />
+                                            </StackPanel>
+                                        </Grid>
+                                    </StackPanel>
+                                </Border>
+
+                                <!--  Checks  -->
+                                <Border Style="{StaticResource CardStyle}">
+                                    <StackPanel>
+                                        <TextBlock Style="{StaticResource HeaderTextStyle}" Text="Validation Checks" />
+                                        <ItemsControl ItemsSource="{Binding AlphaResponse.Is.Checks}">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Border Style="{StaticResource CheckItemStyle}">
+                                                        <Grid>
+                                                            <Grid.ColumnDefinitions>
+                                                                <ColumnDefinition Width="*" />
+                                                                <ColumnDefinition Width="Auto" />
+                                                                <ColumnDefinition Width="Auto" />
+                                                            </Grid.ColumnDefinitions>
+
+                                                            <TextBlock VerticalAlignment="Center" Foreground="#FFE0E0E0" Text="{Binding Name}" />
+
+                                                            <TextBlock Grid.Column="1" Margin="0,0,8,0" VerticalAlignment="Center" Foreground="#FFE0E0E0" Text="{Binding Value, StringFormat=N2}" Visibility="{Binding Value, Converter={StaticResource NullToVisibilityConverter}}" />
+                                                            <Border Grid.Column="2" Padding="8,2" Background="{Binding Result, Converter={StaticResource CheckResultColorConverter}}" CornerRadius="4">
+                                                                <TextBlock VerticalAlignment="Center" FontSize="12" Foreground="White" Text="{Binding Result}" />
+                                                            </Border>
+                                                        </Grid>
+                                                    </Border>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </StackPanel>
+                                </Border>
+                            </StackPanel>
+
+                            <!--  Right Column  -->
+                            <StackPanel Grid.Column="1" Margin="20,0,0,0">
+                                <!--  Settings Card  -->
+                                <Border Style="{StaticResource CardStyle}">
+                                    <StackPanel>
+                                        <TextBlock Style="{StaticResource HeaderTextStyle}" Text="Settings" />
+
+                                        <TextBlock Style="{StaticResource LabelStyle}" Text="Instrument Type" />
+                                        <TextBlock Style="{StaticResource ValueStyle}" Text="{Binding AlphaResponse.Settings.InstrumentType}" />
+
+                                        <TextBlock Style="{StaticResource LabelStyle}" Text="Region" />
+                                        <TextBlock Style="{StaticResource ValueStyle}" Text="{Binding AlphaResponse.Settings.Region}" />
+
+                                        <TextBlock Style="{StaticResource LabelStyle}" Text="Universe" />
+                                        <TextBlock Style="{StaticResource ValueStyle}" Text="{Binding AlphaResponse.Settings.Universe}" />
+
+                                        <TextBlock Style="{StaticResource LabelStyle}" Text="Language" />
+                                        <TextBlock Style="{StaticResource ValueStyle}" Text="{Binding AlphaResponse.Settings.Language}" />
+
+                                        <TextBlock Style="{StaticResource LabelStyle}" Text="Delay" />
+                                        <TextBlock Style="{StaticResource ValueStyle}" Text="{Binding AlphaResponse.Settings.Delay}" />
+
+                                        <TextBlock Style="{StaticResource LabelStyle}" Text="Decay" />
+                                        <TextBlock Style="{StaticResource ValueStyle}" Text="{Binding AlphaResponse.Settings.Decay}" />
+
+                                        <TextBlock Style="{StaticResource LabelStyle}" Text="Truncation" />
+                                        <TextBlock Style="{StaticResource ValueStyle}" Text="{Binding AlphaResponse.Settings.Truncation, StringFormat=P2}" />
+                                    </StackPanel>
+                                </Border>
+
+                                <!--  Classifications  -->
+                                <Border Style="{StaticResource CardStyle}" Visibility="{Binding AlphaResponse.Classifications.Count, Converter={StaticResource InverseUniversalComparisonConverter}, ConverterParameter=0}">
+                                    <StackPanel>
+                                        <TextBlock Style="{StaticResource HeaderTextStyle}" Text="Classifications" />
+                                        <ItemsControl ItemsSource="{Binding AlphaResponse.Classifications}">
+                                            <ItemsControl.ItemsPanel>
+                                                <ItemsPanelTemplate>
+                                                    <WrapPanel />
+                                                </ItemsPanelTemplate>
+                                            </ItemsControl.ItemsPanel>
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Border Style="{StaticResource TagStyle}">
+                                                        <TextBlock FontSize="12" Foreground="#FFE0E0E0" Text="{Binding Name}" />
+                                                    </Border>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </StackPanel>
+                                </Border>
+
+                                <Button Margin="0,0,0,20" Command="{Binding SubmitCommand}" Content="提交 Alpha" Visibility="{Binding CanSubmit, Converter={StaticResource UniversalComparisonConverter}}" />
+                            </StackPanel>
+                        </Grid>
+                    </ScrollViewer>
                 </Grid>
             </TabItem>
         </TabControl>

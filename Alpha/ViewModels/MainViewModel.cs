@@ -8,10 +8,12 @@ using System.Reactive.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.Json;
+using System.Windows;
 using System.Windows.Input;
 using System.Windows.Threading;
 using Alpha.Helpers;
 using Alpha.Models;
+using Alpha.Properties;
 using Alpha.Views;
 using Newtonsoft.Json;
 using ReactiveUI;
@@ -22,10 +24,6 @@ namespace Alpha.ViewModels
     public class MainViewModel : ViewModelBase
     {
         [Reactive]
-        public string? Email { get; set; }
-        [Reactive]
-        public string? Password { get; set; }
-        [Reactive]
         public string? TestSummary { get; set; }
         [Reactive]
         public string? Code { get; set; }
@@ -34,13 +32,13 @@ namespace Alpha.ViewModels
         [Reactive]
         public string? PauseBackTestButtonText { get; set; }
         [Reactive]
-        public int BackTestModeIndex { get; set; }
-        [Reactive]
-        public bool AutoSubmit { get; set; }
+        public string? AlphaQuery { get; set; }
         [Reactive]
         public bool IsPaused { get; set; }
         [Reactive]
         public bool HasBackTestStarted { get; set; }
+        [Reactive]
+        public bool CanSubmit { get; set; }
         [Reactive]
         public WorldQuantAccountLoginResponse? WorldQuantAccountLoginResponse { get; set; }
         [Reactive]
@@ -52,75 +50,10 @@ namespace Alpha.ViewModels
         [Reactive]
         public bool IsKnowledgeLoading { get; set; }
         [Reactive]
-        public SimulationSettingsModel SimulationSettings { get; set; } = new SimulationSettingsModel();
-        [Reactive]
         public CompetitionResponse? Competition { get; set; }
-
-        private bool _ignoreWarnings;
-        public bool IgnoreWarnings
-        {
-            get => _ignoreWarnings;
-            set
-            {
-                _ = this.RaiseAndSetIfChanged(ref _ignoreWarnings, value);
-                UpdateStatus();
-            }
-        }
-
-        private bool _ignoreErrors;
-        public bool IgnoreErrors
-        {
-            get => _ignoreErrors;
-            set
-            {
-                _ = this.RaiseAndSetIfChanged(ref _ignoreErrors, value);
-                UpdateStatus();
-            }
-        }
-
-        private bool _ignoreFailures;
-        public bool IgnoreFailures
-        {
-            get => _ignoreFailures;
-            set
-            {
-                _ = this.RaiseAndSetIfChanged(ref _ignoreFailures, value);
-                UpdateStatus();
-            }
-        }
-
-        private bool _ignorePasses;
-        public bool IgnorePasses
-        {
-            get => _ignorePasses;
-            set
-            {
-                _ = this.RaiseAndSetIfChanged(ref _ignorePasses, value);
-                UpdateStatus();
-            }
-        }
-
-        private bool _ignoreCompleted;
-        public bool IgnoreCompleted
-        {
-            get => _ignoreCompleted;
-            set
-            {
-                _ = this.RaiseAndSetIfChanged(ref _ignoreCompleted, value);
-                UpdateStatus();
-            }
-        }
-
-        private bool _ignoreStop;
-        public bool IgnoreStop
-        {
-            get => _ignoreStop;
-            set
-            {
-                _ = this.RaiseAndSetIfChanged(ref _ignoreStop, value);
-                UpdateStatus();
-            }
-        }
+        [Reactive]
+        public AlphaResponse? AlphaResponse { get; set; }
+        public UserSettings UserSettings { get; }
 
         private IgnoreStatus _currentStatus;
         public IgnoreStatus CurrentStatus
@@ -134,6 +67,8 @@ namespace Alpha.ViewModels
         public ICommand GetKnowledgeCommand { get; }
         public ICommand ViewAlphaDetailsCommand { get; }
         public ICommand PauseBackTestCommand { get; }
+        public ICommand AlphaQueryCommand { get; }
+        public ICommand SubmitCommand { get; }
 
         private HttpClientHandler? _httpClientHandler;
         private HttpClient? _httpClient;
@@ -143,15 +78,31 @@ namespace Alpha.ViewModels
 
         public MainViewModel()
         {
+            UserSettings = Settings.User;
             base.PropertyChanged += MainViewModel_PropertyChanged;
-            LoginCommand = ReactiveCommand.CreateFromTask(Login, this.WhenAnyValue(x => x.Email, x => x.Password, (email, password) => !string.IsNullOrWhiteSpace(email) && !string.IsNullOrWhiteSpace(password)), this);
+            LoginCommand = ReactiveCommand.CreateFromTask(Login, this.WhenAnyValue(x => x.UserSettings.Email, x => x.UserSettings.Password, (email, password) => !string.IsNullOrWhiteSpace(email) && !string.IsNullOrWhiteSpace(password)), this);
             BackTestCommand = ReactiveCommand.Create(BackTest, this.WhenAny(x => x.WorldQuantAccountLoginResponse, x => x.Value != null), this);
             GetKnowledgeCommand = ReactiveCommand.CreateFromTask(LoadKnowledge, this.WhenAnyValue(x => x.WorldQuantAccountLoginResponse, y => y.IsKnowledgeLoading, (x, y) => x != null && !y), this);
             ViewAlphaDetailsCommand = ReactiveCommand.Create<AlphaResponse, Unit>(ViewAlphaDetails, outputScheduler: this);
             PauseBackTestCommand = ReactiveCommand.Create(PauseBackTest, this.WhenAny(x => x.WorldQuantAccountLoginResponse, x => x.Value != null), this);
+            AlphaQueryCommand = ReactiveCommand.CreateFromTask(DoAlphaQuery, this.WhenAnyValue(x => x.AlphaQuery, x => x.WorldQuantAccountLoginResponse, (x, y) => !string.IsNullOrWhiteSpace(x) && y != null), this);
+            SubmitCommand = ReactiveCommand.CreateFromTask(Submit, this.WhenAnyValue(x => x.WorldQuantAccountLoginResponse, x => x.AlphaResponse, (x, y) => x != null && y != null), this);
             PauseBackTestButtonText = "暂停";
             BackTestButtonText = "回测";
             Initialize();
+        }
+
+        private async Task Submit()
+        {
+            if (AlphaResponse?.Id == null)
+            {
+                _ = MessageBox.Show("Alpha 不存在。", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
+                return;
+            }
+
+            _ = await SubmitAlpha(AlphaResponse.Id)
+                ? MessageBox.Show("提交成功。", "提示", MessageBoxButton.OK, MessageBoxImage.Information)
+                : MessageBox.Show("提交失败。", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
         }
 
         private void PauseBackTest()
@@ -162,18 +113,63 @@ namespace Alpha.ViewModels
 
         private void Initialize()
         {
+            UserSettings.PropertyChanged += UserSettings_PropertyChanged;
             dispatcherTimer = new()
             {
                 Interval = TimeSpan.FromMinutes(30)
             };
             dispatcherTimer.Tick += GetCompetitionTimer_Tick;
             TestSummary = "未回测";
+            UpdateStatus();
             PreventSleep();
+            if (!string.IsNullOrWhiteSpace(UserSettings.Email) && !string.IsNullOrWhiteSpace(UserSettings.Password))
+            {
+                _ = Login();
+            }
+        }
+
+        private void UserSettings_PropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+        {
+            switch (e.PropertyName)
+            {
+                case nameof(UserSettings.IgnoreWarnings):
+                case nameof(UserSettings.IgnoreErrors):
+                case nameof(UserSettings.IgnoreFailures):
+                case nameof(UserSettings.IgnorePasses):
+                case nameof(UserSettings.IgnoreCompleted):
+                case nameof(UserSettings.IgnoreStop):
+                    UpdateStatus();
+                    break;
+            }
         }
 
         private void GetCompetitionTimer_Tick(object? sender, EventArgs e)
         {
             _ = LoadCompetition();
+        }
+
+        public async Task DoAlphaQuery()
+        {
+            if (_httpClient == null || _httpClientHandler == null || WorldQuantAccountLoginResponse == null || string.IsNullOrWhiteSpace(AlphaQuery))
+            {
+                return;
+            }
+
+            HttpResponseMessage alphaResponse = await _httpClient.GetAsync($"https://api.worldquantbrain.com/alphas/{AlphaQuery}");
+            string alphaResponseContent = await alphaResponse.Content.ReadAsStringAsync();
+            AlphaResponse = JsonConvert.DeserializeObject<AlphaResponse>(alphaResponseContent);
+            if (AlphaResponse != null)
+            {
+                CanSubmit = AlphaResponse?.Is?.Checks?.Any(delegate (AlphaCheck check)
+                {
+                    string? result = check.Result;
+                    return result != null && (result.ToUpper()?.Equals("FAIL", StringComparison.OrdinalIgnoreCase)).GetValueOrDefault();
+                }) == false && AlphaResponse.Status?.ToUpper() == "UNSUBMITTED";
+            }
+            else
+            {
+                _ = MessageBox.Show("Alpha 不存在。", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
         }
 
         private Unit ViewAlphaDetails(AlphaResponse response)
@@ -198,27 +194,27 @@ namespace Alpha.ViewModels
         {
             CurrentStatus = IgnoreStatus.None;
 
-            if (IgnoreWarnings)
+            if (UserSettings.IgnoreWarnings)
             {
                 CurrentStatus |= IgnoreStatus.Warning;
             }
-            if (IgnoreErrors)
+            if (UserSettings.IgnoreErrors)
             {
                 CurrentStatus |= IgnoreStatus.Error;
             }
-            if (IgnoreFailures)
+            if (UserSettings.IgnoreFailures)
             {
                 CurrentStatus |= IgnoreStatus.Failure;
             }
-            if (IgnorePasses)
+            if (UserSettings.IgnorePasses)
             {
                 CurrentStatus |= IgnoreStatus.Pass;
             }
-            if (IgnoreCompleted)
+            if (UserSettings.IgnoreCompleted)
             {
                 CurrentStatus |= IgnoreStatus.Complete;
             }
-            if (IgnoreStop)
+            if (UserSettings.IgnoreStop)
             {
                 CurrentStatus |= IgnoreStatus.Stop;
             }
@@ -367,6 +363,13 @@ namespace Alpha.ViewModels
                                         string alphaResponseContent = await alphaResponse.Content.ReadAsStringAsync();
                                         AlphaResponse? alpha = JsonConvert.DeserializeObject<AlphaResponse>(alphaResponseContent);
                                         result.AlphaResult = alpha;
+                                        if (UserSettings.AutoSubmit && alpha?.Is?.Checks?.Any(check => check.Result?.ToUpper()?.Equals("FAIL", StringComparison.OrdinalIgnoreCase) == true) == false)
+                                        {
+                                            if (await SubmitAlpha(result.Alpha))
+                                            {
+                                                alpha.Status = "ACTIVE";
+                                            }
+                                        }
                                         result.Time = taskStopwatch.Elapsed.FormatTime();
                                         SimulationCompletedDatas.Add(result);
                                         break;
@@ -385,9 +388,12 @@ namespace Alpha.ViewModels
                                     AlphaResponse? alpha = JsonConvert.DeserializeObject<AlphaResponse>(alphaResponseContent);
                                     result.Regular ??= item.Regular;
                                     result.AlphaResult = alpha?.Id == null ? null : alpha;
-                                    if (AutoSubmit && alpha?.Is?.Checks?.Any(check => check.Result?.ToUpper()?.Equals("FAIL", StringComparison.OrdinalIgnoreCase) == true) == false)
+                                    if (UserSettings.AutoSubmit && alpha?.Is?.Checks?.Any(check => check.Result?.ToUpper()?.Equals("FAIL", StringComparison.OrdinalIgnoreCase) == true) == false)
                                     {
-                                        _ = await SubmitAlpha(result.Alpha);
+                                        if (await SubmitAlpha(result.Alpha))
+                                        {
+                                            alpha.Status = "ACTIVE";
+                                        }
                                     }
                                     result.Time = taskStopwatch.Elapsed.FormatTime();
                                     SimulationCompletedDatas.Add(result);
@@ -423,7 +429,7 @@ namespace Alpha.ViewModels
                 return;
             }
 
-            if (BackTestModeIndex == 1)
+            if (UserSettings.BackTestModeIndex == 1)
             {
                 if (string.IsNullOrWhiteSpace(Code))
                 {
@@ -436,16 +442,16 @@ namespace Alpha.ViewModels
                     Type = "REGULAR",
                     Settings = new SimulationSettings
                     {
-                        InstrumentType = SimulationSettings.AssetClass?.ToUpper(),
-                        Region = SimulationSettings.Region?.ToUpper(),
-                        Universe = SimulationSettings.Liquidity?.ToUpper(),
-                        Delay = int.Parse(SimulationSettings.DecisionDelay ?? "1"),
-                        Decay = int.Parse(SimulationSettings.LinearDecayWeightedAverage ?? "0"),
-                        Neutralization = SimulationSettings.AlphaWeight?.ToUpper(),
-                        Truncation = double.Parse(SimulationSettings.TruncationWeight ?? "0.08"),
-                        Pasteurization = SimulationSettings.DataCleaning?.ToUpper(),
-                        UnitHandling = SimulationSettings.WarningThrowing?.ToUpper(),
-                        NanHandling = SimulationSettings.MissingValueHandling?.ToUpper(),
+                        InstrumentType = UserSettings.SimulationSettings.AssetClass?.ToUpper(),
+                        Region = UserSettings.SimulationSettings.Region?.ToUpper(),
+                        Universe = UserSettings.SimulationSettings.Liquidity?.ToUpper(),
+                        Delay = int.Parse(UserSettings.SimulationSettings.DecisionDelay ?? "1"),
+                        Decay = int.Parse(UserSettings.SimulationSettings.LinearDecayWeightedAverage ?? "0"),
+                        Neutralization = UserSettings.SimulationSettings.AlphaWeight?.ToUpper(),
+                        Truncation = double.Parse(UserSettings.SimulationSettings.TruncationWeight ?? "0.08"),
+                        Pasteurization = UserSettings.SimulationSettings.DataCleaning?.ToUpper(),
+                        UnitHandling = UserSettings.SimulationSettings.WarningThrowing?.ToUpper(),
+                        NanHandling = UserSettings.SimulationSettings.MissingValueHandling?.ToUpper(),
                         Language = "FASTEXPR",
                         Visualization = false
                     },
@@ -454,14 +460,14 @@ namespace Alpha.ViewModels
 
                 _alphaList.Add(simulationData);
             }
-            else if (BackTestModeIndex == 2)
+            else if (UserSettings.BackTestModeIndex == 2)
             {
                 if (string.IsNullOrWhiteSpace(Code))
                 {
                     return;
                 }
 
-                SearchScope searchScope = new(SimulationSettings.Region?.ToUpper(), SimulationSettings.DecisionDelay?.ToUpper(), SimulationSettings.Liquidity?.ToUpper(), SimulationSettings.Liquidity?.ToUpper());
+                SearchScope searchScope = new(UserSettings.SimulationSettings.Region?.ToUpper(), UserSettings.SimulationSettings.DecisionDelay?.ToUpper(), UserSettings.SimulationSettings.Liquidity?.ToUpper(), UserSettings.SimulationSettings.Liquidity?.ToUpper());
                 List<string> c1 = DirectiveReplacerExtension.HasPlaceholders(Code, 1) ? await GetDataFields(searchScope, search: "analyst", token: token) : [];
                 List<string> c2 = DirectiveReplacerExtension.HasPlaceholders(Code, 2) ? await GetDataFields(searchScope, search: "fundamental", token: token) : [];
                 List<string> c3 = DirectiveReplacerExtension.HasPlaceholders(Code, 3) ? await GetDataFields(searchScope, search: "model", token: token) : [];
@@ -487,16 +493,16 @@ namespace Alpha.ViewModels
                         Type = "REGULAR",
                         Settings = new SimulationSettings
                         {
-                            InstrumentType = SimulationSettings.AssetClass?.ToUpper(),
-                            Region = SimulationSettings.Region?.ToUpper(),
-                            Universe = SimulationSettings.Liquidity?.ToUpper(),
-                            Delay = int.Parse(SimulationSettings.DecisionDelay ?? "1"),
-                            Decay = int.Parse(SimulationSettings.LinearDecayWeightedAverage ?? "0"),
-                            Neutralization = SimulationSettings.AlphaWeight?.ToUpper(),
-                            Truncation = double.Parse(SimulationSettings.TruncationWeight ?? "0.08"),
-                            Pasteurization = SimulationSettings.DataCleaning?.ToUpper(),
-                            UnitHandling = SimulationSettings.WarningThrowing?.ToUpper(),
-                            NanHandling = SimulationSettings.MissingValueHandling?.ToUpper(),
+                            InstrumentType = UserSettings.SimulationSettings.AssetClass?.ToUpper(),
+                            Region = UserSettings.SimulationSettings.Region?.ToUpper(),
+                            Universe = UserSettings.SimulationSettings.Liquidity?.ToUpper(),
+                            Delay = int.Parse(UserSettings.SimulationSettings.DecisionDelay ?? "1"),
+                            Decay = int.Parse(UserSettings.SimulationSettings.LinearDecayWeightedAverage ?? "0"),
+                            Neutralization = UserSettings.SimulationSettings.AlphaWeight?.ToUpper(),
+                            Truncation = double.Parse(UserSettings.SimulationSettings.TruncationWeight ?? "0.08"),
+                            Pasteurization = UserSettings.SimulationSettings.DataCleaning?.ToUpper(),
+                            UnitHandling = UserSettings.SimulationSettings.WarningThrowing?.ToUpper(),
+                            NanHandling = UserSettings.SimulationSettings.MissingValueHandling?.ToUpper(),
                             Language = "FASTEXPR",
                             Visualization = false
                         },
@@ -547,7 +553,7 @@ namespace Alpha.ViewModels
                     "30"
                 ];
                 List<string> alphaExpressions = [];
-                List<string> companyFundamentals = await GetDataFields(new SearchScope(SimulationSettings.Region?.ToUpper(), SimulationSettings.DecisionDelay?.ToUpper(), SimulationSettings.Liquidity?.ToUpper(), SimulationSettings.Liquidity?.ToUpper()), datasetId: "fundamental6", token: token);
+                List<string> companyFundamentals = await GetDataFields(new SearchScope(UserSettings.SimulationSettings.Region?.ToUpper(), UserSettings.SimulationSettings.DecisionDelay?.ToUpper(), UserSettings.SimulationSettings.Liquidity?.ToUpper(), UserSettings.SimulationSettings.Liquidity?.ToUpper()), datasetId: "fundamental6", token: token);
 
                 await Parallel.ForEachAsync(_groupCompareOp, async (gco, cancellationToken) =>
                 {
@@ -576,16 +582,16 @@ namespace Alpha.ViewModels
                         Type = "REGULAR",
                         Settings = new SimulationSettings
                         {
-                            InstrumentType = SimulationSettings.AssetClass?.ToUpper(),
-                            Region = SimulationSettings.Region?.ToUpper(),
-                            Universe = SimulationSettings.Liquidity?.ToUpper(),
-                            Delay = int.Parse(SimulationSettings.DecisionDelay ?? "1"),
-                            Decay = int.Parse(SimulationSettings.LinearDecayWeightedAverage ?? "0"),
-                            Neutralization = SimulationSettings.AlphaWeight?.ToUpper(),
-                            Truncation = double.Parse(SimulationSettings.TruncationWeight ?? "0.08"),
-                            Pasteurization = SimulationSettings.DataCleaning?.ToUpper(),
-                            UnitHandling = SimulationSettings.WarningThrowing?.ToUpper(),
-                            NanHandling = SimulationSettings.MissingValueHandling?.ToUpper(),
+                            InstrumentType = UserSettings.SimulationSettings.AssetClass?.ToUpper(),
+                            Region = UserSettings.SimulationSettings.Region?.ToUpper(),
+                            Universe = UserSettings.SimulationSettings.Liquidity?.ToUpper(),
+                            Delay = int.Parse(UserSettings.SimulationSettings.DecisionDelay ?? "1"),
+                            Decay = int.Parse(UserSettings.SimulationSettings.LinearDecayWeightedAverage ?? "0"),
+                            Neutralization = UserSettings.SimulationSettings.AlphaWeight?.ToUpper(),
+                            Truncation = double.Parse(UserSettings.SimulationSettings.TruncationWeight ?? "0.08"),
+                            Pasteurization = UserSettings.SimulationSettings.DataCleaning?.ToUpper(),
+                            UnitHandling = UserSettings.SimulationSettings.WarningThrowing?.ToUpper(),
+                            NanHandling = UserSettings.SimulationSettings.MissingValueHandling?.ToUpper(),
                             Language = "FASTEXPR",//FASTEXPR
                             Visualization = false
                         },
@@ -614,7 +620,7 @@ namespace Alpha.ViewModels
             _httpClientHandler.CookieContainer ??= new();
             _httpClient ??= new(_httpClientHandler);
             string url = "https://api.worldquantbrain.com/authentication";
-            string authToken = Convert.ToBase64String(Encoding.ASCII.GetBytes($"{Email}:{Password}"));
+            string authToken = Convert.ToBase64String(Encoding.ASCII.GetBytes($"{UserSettings.Email}:{UserSettings.Password}"));
             _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Basic", authToken);
             _httpClient.DefaultRequestHeaders.Add("sec-ch-ua", "\"Microsoft Edge\";v=\"131\", \"Chromium\";v=\"131\", \"Not_A Brand\";v=\"24\"");
             _httpClient.DefaultRequestHeaders.Add("sec-ch-ua-mobile", "?0");
@@ -753,10 +759,9 @@ namespace Alpha.ViewModels
 
             string url = $"https://api.worldquantbrain.com/alphas/{alphaId}/submit";
             HttpResponseMessage response = await _httpClient.PostAsync(url, null);
-
-            if (response.StatusCode != HttpStatusCode.Created)
+            if (response.StatusCode == HttpStatusCode.OK)
             {
-                return false;
+                return true;
             }
 
             string? getUrl = response.Headers.Location?.ToString();
@@ -777,7 +782,7 @@ namespace Alpha.ViewModels
                 }
                 else
                 {
-                    return getResponse.StatusCode == HttpStatusCode.OK || await SubmitAlpha(alphaId);
+                    return getResponse.StatusCode != HttpStatusCode.Forbidden;
                 }
             }
         }
