@@ -79,7 +79,7 @@
             <Grid Margin="24,0">
                 <StackPanel VerticalAlignment="Center" Orientation="Horizontal">
                     <TextBlock FontSize="16" Foreground="#FF808080" Text="Alpha ID: " />
-                    <TextBlock FontSize="16" FontWeight="SemiBold" Foreground="#FFEAEAEA" Text="{Binding Id}" />
+                    <TextBlock FontSize="16" FontWeight="SemiBold" Foreground="#FFEAEAEA" Text="{Binding AlphaResponse.Id}" />
                     <TextBlock Margin="5,0" FontSize="16" Foreground="#FF808080" Text="•" />
                     <TextBlock FontSize="16" Foreground="#FF808080" Text="{Binding AlphaResponse.Author}" />
                 </StackPanel>

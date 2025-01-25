@@ -6,9 +6,9 @@ namespace Alpha.Converters
     {
         public override void WriteJson(JsonWriter writer, object? value, JsonSerializer serializer)
         {
-            if (value is DateTime)
+            if (value is DateTime time)
             {
-                writer.WriteValue(((DateTime)value - new DateTime(1970, 1, 1)).TotalSeconds);
+                writer.WriteValue((time - new DateTime(1970, 1, 1)).TotalSeconds);
             }
             else
             {

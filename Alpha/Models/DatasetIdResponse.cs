@@ -1,17 +1,22 @@
-﻿using Newtonsoft.Json;
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using Newtonsoft.Json;
 
 namespace Alpha.Models
 {
-    public class FieldResponse
+    public class DatasetIdResponse
     {
         [JsonProperty("count")]
         public int Count { get; set; }
 
         [JsonProperty("results")]
-        public List<FieldItem>? Results { get; set; }
+        public List<DatasetIdResult>? Results { get; set; }
     }
 
-    public class FieldItem
+    public class DatasetIdResult
     {
         [JsonProperty("id")]
         public string? Id { get; set; }
@@ -20,7 +25,7 @@ namespace Alpha.Models
         public string? Description { get; set; }
 
         [JsonProperty("dataset")]
-        public DatasetInfo? Dataset { get; set; }
+        public Dataset? Dataset { get; set; }
 
         [JsonProperty("category")]
         public Category? Category { get; set; }
@@ -51,14 +56,5 @@ namespace Alpha.Models
 
         [JsonProperty("themes")]
         public List<object>? Themes { get; set; }
-    }
-
-    public class DatasetInfo
-    {
-        [JsonProperty("id")]
-        public string? Id { get; set; }
-
-        [JsonProperty("name")]
-        public string? Name { get; set; }
     }
 }

@@ -7,7 +7,7 @@ using System.Reactive;
 using System.Reactive.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
-using System.Text.Json;
+using System.Text.RegularExpressions;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Threading;
@@ -23,36 +23,25 @@ namespace Alpha.ViewModels
 {
     public class MainViewModel : ViewModelBase
     {
-        [Reactive]
-        public string? TestSummary { get; set; }
-        [Reactive]
-        public string? Code { get; set; }
-        [Reactive]
-        public string? BackTestButtonText { get; set; }
-        [Reactive]
-        public string? PauseBackTestButtonText { get; set; }
-        [Reactive]
-        public string? AlphaQuery { get; set; }
-        [Reactive]
-        public bool IsPaused { get; set; }
-        [Reactive]
-        public bool HasBackTestStarted { get; set; }
-        [Reactive]
-        public bool CanSubmit { get; set; }
-        [Reactive]
-        public WorldQuantAccountLoginResponse? WorldQuantAccountLoginResponse { get; set; }
-        [Reactive]
-        public ObservableCollection<Knowledge>? KnowledgeList { get; set; }
-        [Reactive]
-        public ObservableCollection<SimulationCompletedData>? SimulationCompletedDatas { get; set; }
-        [Reactive]
-        public Knowledge? SelectedKnowledge { get; set; }
-        [Reactive]
-        public bool IsKnowledgeLoading { get; set; }
-        [Reactive]
-        public CompetitionResponse? Competition { get; set; }
-        [Reactive]
-        public AlphaResponse? AlphaResponse { get; set; }
+        [Reactive] public string? TestSummary { get; set; }
+        [Reactive] public string? Code { get; set; }
+        [Reactive] public string? BackTestButtonText { get; set; }
+        [Reactive] public string? PauseBackTestButtonText { get; set; }
+        [Reactive] public string? AlphaQuery { get; set; }
+        [Reactive] public bool IsPaused { get; set; }
+        [Reactive] public bool HasBackTestStarted { get; set; }
+        [Reactive] public bool CanSubmit { get; set; }
+        [Reactive] public WorldQuantAccountLoginResponse? WorldQuantAccountLoginResponse { get; set; }
+        [Reactive] public ObservableCollection<FieldData>? FieldDataList { get; set; }
+        [Reactive] public FieldData? SelectedFieldData { get; set; }
+        [Reactive] public ObservableCollection<OperatorResponse>? Categories { get; set; }
+        [Reactive] public OperatorResponse? SelectedCategory { get; set; }
+        [Reactive] public ObservableCollection<OperatorItemResponse>? FilteredOperators { get; set; }
+        [Reactive] public ObservableCollection<SimulationCompletedData>? SimulationCompletedDatas { get; set; }
+        [Reactive] public bool IsKnowledgeLoading { get; set; }
+        [Reactive] public CompetitionResponse? Competition { get; set; }
+        [Reactive] public AlphaResponse? AlphaResponse { get; set; }
+        [Reactive] public AlphaSummaryStatus? AlphaSummary { get; set; }
         public UserSettings UserSettings { get; }
 
         private IgnoreStatus _currentStatus;
@@ -69,17 +58,19 @@ namespace Alpha.ViewModels
         public ICommand PauseBackTestCommand { get; }
         public ICommand AlphaQueryCommand { get; }
         public ICommand SubmitCommand { get; }
+        public ICommand CopyAlphaRegularCommand { get; }
+        public ICommand OpenAlphaDetailsUrlCommand { get; }
 
         private HttpClientHandler? _httpClientHandler;
         private HttpClient? _httpClient;
         private List<SimulationData>? _alphaList;
         private CancellationTokenSource? _cts;
         private DispatcherTimer? dispatcherTimer;
+        private List<OperatorItemResponse>? _allOperators;
 
         public MainViewModel()
         {
             UserSettings = Settings.User;
-            base.PropertyChanged += MainViewModel_PropertyChanged;
             LoginCommand = ReactiveCommand.CreateFromTask(Login, this.WhenAnyValue(x => x.UserSettings.Email, x => x.UserSettings.Password, (email, password) => !string.IsNullOrWhiteSpace(email) && !string.IsNullOrWhiteSpace(password)), this);
             BackTestCommand = ReactiveCommand.Create(BackTest, this.WhenAny(x => x.WorldQuantAccountLoginResponse, x => x.Value != null), this);
             GetKnowledgeCommand = ReactiveCommand.CreateFromTask(LoadKnowledge, this.WhenAnyValue(x => x.WorldQuantAccountLoginResponse, y => y.IsKnowledgeLoading, (x, y) => x != null && !y), this);
@@ -87,9 +78,38 @@ namespace Alpha.ViewModels
             PauseBackTestCommand = ReactiveCommand.Create(PauseBackTest, this.WhenAny(x => x.WorldQuantAccountLoginResponse, x => x.Value != null), this);
             AlphaQueryCommand = ReactiveCommand.CreateFromTask(DoAlphaQuery, this.WhenAnyValue(x => x.AlphaQuery, x => x.WorldQuantAccountLoginResponse, (x, y) => !string.IsNullOrWhiteSpace(x) && y != null), this);
             SubmitCommand = ReactiveCommand.CreateFromTask(Submit, this.WhenAnyValue(x => x.WorldQuantAccountLoginResponse, x => x.AlphaResponse, (x, y) => x != null && y != null), this);
+            CopyAlphaRegularCommand = ReactiveCommand.Create<AlphaResponse, Unit>(CopyAlphaRegular, outputScheduler: this);
+            OpenAlphaDetailsUrlCommand = ReactiveCommand.Create<AlphaResponse, Unit>(OpenAlphaDetailsUrl, outputScheduler: this);
             PauseBackTestButtonText = "暂停";
             BackTestButtonText = "回测";
             Initialize();
+        }
+
+        private Unit OpenAlphaDetailsUrl(AlphaResponse? alpha)
+        {
+            if (alpha?.Id == null)
+            {
+                return default;
+            }
+
+            _ = Process.Start(new ProcessStartInfo("https://platform.worldquantbrain.com/alpha/" + alpha.Id) { UseShellExecute = true });
+            return default;
+        }
+
+        private Unit CopyAlphaRegular(AlphaResponse? alpha)
+        {
+            if (alpha?.Regular?.Code != null)
+            {
+                try
+                {
+                    Clipboard.SetText(alpha.Regular.Code);
+                }
+                catch (Exception ex)
+                {
+                    _ = MessageBox.Show("复制失败: " + ex.Message + ".", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
+            }
+            return default;
         }
 
         private async Task Submit()
@@ -100,9 +120,10 @@ namespace Alpha.ViewModels
                 return;
             }
 
-            _ = await SubmitAlpha(AlphaResponse.Id)
+            SubmitResult result = await SubmitAlpha(AlphaResponse.Id);
+            _ = result.Success
                 ? MessageBox.Show("提交成功。", "提示", MessageBoxButton.OK, MessageBoxImage.Information)
-                : MessageBox.Show("提交失败。", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
+                : MessageBox.Show(result.Message, "错误", MessageBoxButton.OK, MessageBoxImage.Error);
         }
 
         private void PauseBackTest()
@@ -111,12 +132,13 @@ namespace Alpha.ViewModels
             PauseBackTestButtonText = IsPaused ? "继续" : "暂停";
         }
 
-        private void Initialize()
+        private async void Initialize()
         {
+            PropertyChanged += MainViewModel_PropertyChanged;
             UserSettings.PropertyChanged += UserSettings_PropertyChanged;
             dispatcherTimer = new()
             {
-                Interval = TimeSpan.FromMinutes(30)
+                Interval = TimeSpan.FromMinutes(5)
             };
             dispatcherTimer.Tick += GetCompetitionTimer_Tick;
             TestSummary = "未回测";
@@ -124,7 +146,46 @@ namespace Alpha.ViewModels
             PreventSleep();
             if (!string.IsNullOrWhiteSpace(UserSettings.Email) && !string.IsNullOrWhiteSpace(UserSettings.Password))
             {
-                _ = Login();
+                await Login();
+            }
+            //await GetFileds();
+        }
+
+        private void MainViewModel_PropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+        {
+            switch (e.PropertyName)
+            {
+                case nameof(SelectedCategory):
+                    FilterOperators();
+                    break;
+            }
+        }
+
+        private void FilterOperators()
+        {
+            if (SelectedCategory == null)
+            {
+                FilteredOperators?.Clear();
+            }
+            else
+            {
+                FilteredOperators = [.. SelectedCategory];
+            }
+        }
+
+        private async Task GetFileds()
+        {
+            if (WorldQuantAccountLoginResponse != null)
+            {
+                SearchScope searchScope = new(UserSettings.SimulationSettings.Region?.ToUpper(), UserSettings.SimulationSettings.DecisionDelay?.ToUpper(), UserSettings.SimulationSettings.Liquidity?.ToUpper(), UserSettings.SimulationSettings.Liquidity?.ToUpper());
+                StringBuilder sb = new();
+                foreach (DatasetIdResult item in await GetDataFields(searchScope, datasetId: "socialmedia8"))
+                {
+                    _ = sb.AppendLine($"new Field(\"{item.Id}\", FieldType.{item.Type.CapitalizeFirstLetter()}, UserDefinedType.User),");
+                }
+                ;
+                string str = sb.ToString();
+                Console.WriteLine(str);
             }
         }
 
@@ -146,6 +207,7 @@ namespace Alpha.ViewModels
         private void GetCompetitionTimer_Tick(object? sender, EventArgs e)
         {
             _ = LoadCompetition();
+            _ = LoadAlphaSummary();
         }
 
         public async Task DoAlphaQuery()
@@ -174,7 +236,7 @@ namespace Alpha.ViewModels
 
         private Unit ViewAlphaDetails(AlphaResponse response)
         {
-            AlphaInfoWindow alphaDetailsViewModel = new(response);
+            AlphaInfoWindow alphaDetailsViewModel = new(response, _httpClient);
             alphaDetailsViewModel.Show();
             return default;
         }
@@ -186,8 +248,37 @@ namespace Alpha.ViewModels
                 return;
             }
 
-            string json = await _httpClient.GetStringAsync("https://api.worldquantbrain.com/competitions/challenge");
-            Competition = JsonConvert.DeserializeObject<CompetitionResponse>(json);
+            try
+            {
+                string json = await _httpClient.GetStringAsync("https://api.worldquantbrain.com/competitions/challenge");
+                Competition = JsonConvert.DeserializeObject<CompetitionResponse>(json);
+            }
+            catch (Exception)
+            {
+
+            }
+        }
+
+        private async Task LoadAlphaSummary()
+        {
+            if (_httpClient == null || _httpClientHandler == null || WorldQuantAccountLoginResponse == null)
+            {
+                return;
+            }
+
+            try
+            {
+                HttpRequestMessage request = new(HttpMethod.Get, "https://api.worldquantbrain.com/users/self/alphas/summary");
+                request.Headers.Add("Accept", "application/json;version=4.0");
+                string json = await (await _httpClient.SendAsync(request)).Content.ReadAsStringAsync();
+                AlphaSummaryStatus alphaSummary = JsonConvert.DeserializeObject<AlphaSummaryStatus>(json) ?? new();
+                alphaSummary.Total = alphaSummary.Unsubmitted + alphaSummary.Decommissioned + alphaSummary.Active;
+                AlphaSummary = alphaSummary;
+            }
+            catch (Exception)
+            {
+
+            }
         }
 
         private void UpdateStatus()
@@ -222,7 +313,9 @@ namespace Alpha.ViewModels
 
         private async Task LoadKnowledge()
         {
-            KnowledgeList = [];
+            FieldDataList = [];
+            Categories = [];
+            _allOperators = [];
             IsKnowledgeLoading = true;
 
             DatasetResponse? datasetResponse = await GetDataset();
@@ -235,20 +328,33 @@ namespace Alpha.ViewModels
 
                     if (fieldResponse?.Results != null)
                     {
-                        Knowledge knowledge = new()
+                        FieldData knowledge = new()
                         {
                             Title = dataset.Name,
                             Description = dataset.Description,
                             Fields = [],
                             FieldCount = dataset.FieldCount
                         };
-                        KnowledgeList.Add(knowledge);
-                        foreach (Field field in fieldResponse.Results)
+                        FieldDataList.Add(knowledge);
+                        foreach (FieldItem field in fieldResponse.Results)
                         {
                             knowledge.Fields.Add(field);
                         }
                     }
                 }
+            }
+
+            OperatorItemResponse[]? operatorResponse = await GetFunctions();
+
+            if (operatorResponse != null)
+            {
+                _allOperators.AddRange(operatorResponse);
+                IOrderedEnumerable<OperatorResponse> groupedOperators = operatorResponse.GroupBy(o => o.Category)
+                    .Select(g => new OperatorResponse(g.Key ?? "Unknown", [.. g]))
+                    .OrderBy(g => g.Key);
+                Categories = [.. groupedOperators];
+                SelectedCategory = Categories.FirstOrDefault();
+                FilterOperators();
             }
             IsKnowledgeLoading = false;
         }
@@ -298,8 +404,13 @@ namespace Alpha.ViewModels
             SimulationCompletedDatas = [];
             SemaphoreSlim semaphore = WorldQuantAccountLoginResponse.Permissions.Contains("CONSULTANT") ? new(10) : new(3);
             List<int> incoming = [];
+            int lastIndex = UserSettings.LastExecuteIndex;
+            List<SimulationData> list = await Task.Run(() =>
+            {
+                return UserSettings.BackTestOrderIndex == 0 ? _alphaList : [.. _alphaList.Skip(Math.Max(0, Math.Min(_alphaList.Count - 1, UserSettings.BackTestOrderIndex)))];
+            });
 
-            List<Task> tasks = _alphaList.Select(async item =>
+            List<Task> tasks = list.Select(async item =>
             {
                 await semaphore.WaitAsync();
                 if (token.IsCancellationRequested)
@@ -307,6 +418,11 @@ namespace Alpha.ViewModels
                     return;
                 }
                 int incomingIndex = index + 1;
+                if (UserSettings.BackTestModeIndex == 0 && UserSettings.BackTestOrderIndex == 1)
+                {
+                    incomingIndex += lastIndex;
+                    UserSettings.LastExecuteIndex = incomingIndex;
+                }
                 try
                 {
                     await Relogin();
@@ -365,7 +481,7 @@ namespace Alpha.ViewModels
                                         result.AlphaResult = alpha;
                                         if (UserSettings.AutoSubmit && alpha?.Is?.Checks?.Any(check => check.Result?.ToUpper()?.Equals("FAIL", StringComparison.OrdinalIgnoreCase) == true) == false)
                                         {
-                                            if (await SubmitAlpha(result.Alpha))
+                                            if ((await SubmitAlpha(result.Alpha, token)).Success)
                                             {
                                                 alpha.Status = "ACTIVE";
                                             }
@@ -390,7 +506,7 @@ namespace Alpha.ViewModels
                                     result.AlphaResult = alpha?.Id == null ? null : alpha;
                                     if (UserSettings.AutoSubmit && alpha?.Is?.Checks?.Any(check => check.Result?.ToUpper()?.Equals("FAIL", StringComparison.OrdinalIgnoreCase) == true) == false)
                                     {
-                                        if (await SubmitAlpha(result.Alpha))
+                                        if ((await SubmitAlpha(result.Alpha)).Success)
                                         {
                                             alpha.Status = "ACTIVE";
                                         }
@@ -424,7 +540,7 @@ namespace Alpha.ViewModels
         {
             _alphaList = [];
 
-            if (KnowledgeList == null)
+            if (FieldDataList == null)
             {
                 return;
             }
@@ -455,7 +571,7 @@ namespace Alpha.ViewModels
                         Language = "FASTEXPR",
                         Visualization = false
                     },
-                    Regular = Code
+                    Regular = Regex.Replace(Code, @"(#.*|//.*)", string.Empty)
                 };
 
                 _alphaList.Add(simulationData);
@@ -468,23 +584,37 @@ namespace Alpha.ViewModels
                 }
 
                 SearchScope searchScope = new(UserSettings.SimulationSettings.Region?.ToUpper(), UserSettings.SimulationSettings.DecisionDelay?.ToUpper(), UserSettings.SimulationSettings.Liquidity?.ToUpper(), UserSettings.SimulationSettings.Liquidity?.ToUpper());
-                List<string> c1 = DirectiveReplacerExtension.HasPlaceholders(Code, 1) ? await GetDataFields(searchScope, search: "analyst", token: token) : [];
-                List<string> c2 = DirectiveReplacerExtension.HasPlaceholders(Code, 2) ? await GetDataFields(searchScope, search: "fundamental", token: token) : [];
-                List<string> c3 = DirectiveReplacerExtension.HasPlaceholders(Code, 3) ? await GetDataFields(searchScope, search: "model", token: token) : [];
-                List<string> c4 = DirectiveReplacerExtension.HasPlaceholders(Code, 4) ? await GetDataFields(searchScope, search: "news", token: token) : [];
-                List<string> c5 = DirectiveReplacerExtension.HasPlaceholders(Code, 5) ? await GetDataFields(searchScope, search: "option", token: token) : [];
-                List<string> c6 = DirectiveReplacerExtension.HasPlaceholders(Code, 6) ? await GetDataFields(searchScope, search: "price volume", token: token) : [];
-                List<string> c7 = DirectiveReplacerExtension.HasPlaceholders(Code, 7) ? await GetDataFields(searchScope, search: "social media", token: token) : [];
+                List<DatasetIdResult> c1 = DirectiveReplacerExtension.HasPlaceholders(Code, 1) ? await GetDataFields(searchScope, datasetId: "analyst4", token: token) : [];
+                List<DatasetIdResult> c2 = DirectiveReplacerExtension.HasPlaceholders(Code, 2) ? await GetDataFields(searchScope, datasetId: "fundamental2", token: token) : [];
+                List<DatasetIdResult> c3 = DirectiveReplacerExtension.HasPlaceholders(Code, 3) ? await GetDataFields(searchScope, datasetId: "fundamental6", token: token) : [];
+                List<DatasetIdResult> c4 = DirectiveReplacerExtension.HasPlaceholders(Code, 4) ? await GetDataFields(searchScope, datasetId: "model16", token: token) : [];
+                List<DatasetIdResult> c5 = DirectiveReplacerExtension.HasPlaceholders(Code, 5) ? await GetDataFields(searchScope, datasetId: "model51", token: token) : [];
+                List<DatasetIdResult> c6 = DirectiveReplacerExtension.HasPlaceholders(Code, 6) ? await GetDataFields(searchScope, datasetId: "news12", token: token) : [];
+                List<DatasetIdResult> c7 = DirectiveReplacerExtension.HasPlaceholders(Code, 7) ? await GetDataFields(searchScope, datasetId: "news18", token: token) : [];
+                List<DatasetIdResult> c8 = DirectiveReplacerExtension.HasPlaceholders(Code, 8) ? await GetDataFields(searchScope, datasetId: "option8", token: token) : [];
+                List<DatasetIdResult> c9 = DirectiveReplacerExtension.HasPlaceholders(Code, 9) ? await GetDataFields(searchScope, datasetId: "option9", token: token) : [];
+                List<DatasetIdResult> c10 = DirectiveReplacerExtension.HasPlaceholders(Code, 10) ? await GetDataFields(searchScope, datasetId: "pv1", token: token) : [];
+                List<DatasetIdResult> c11 = DirectiveReplacerExtension.HasPlaceholders(Code, 11) ? await GetDataFields(searchScope, datasetId: "pv13", token: token) : [];
+                List<DatasetIdResult> c12 = DirectiveReplacerExtension.HasPlaceholders(Code, 12) ? await GetDataFields(searchScope, datasetId: "univ1", token: token) : [];
+                List<DatasetIdResult> c13 = DirectiveReplacerExtension.HasPlaceholders(Code, 13) ? await GetDataFields(searchScope, datasetId: "socialmedia12", token: token) : [];
+                List<DatasetIdResult> c14 = DirectiveReplacerExtension.HasPlaceholders(Code, 14) ? await GetDataFields(searchScope, datasetId: "socialmedia8", token: token) : [];
 
-                Dictionary<int, List<string>> replacements = new()
+                Dictionary<int, List<string?>> replacements = new()
                 {
-                    { 1, c1 },
-                    { 2, c2 },
-                    { 3, c3 },
-                    { 4, c4 },
-                    { 5, c5 },
-                    { 6, c6 },
-                    { 7, c7 }
+                    { 1, c1.Select(x => x.Id)?.ToList()??[] },
+                    { 2, c2.Select(x => x.Id)?.ToList()??[] },
+                    { 3, c3.Select(x => x.Id)?.ToList()??[] },
+                    { 4, c4.Select(x => x.Id)?.ToList()??[] },
+                    { 5, c5.Select(x => x.Id)?.ToList()??[] },
+                    { 6, c6.Select(x => x.Id)?.ToList()??[] },
+                    { 7, c7.Select(x => x.Id)?.ToList()??[] },
+                    { 8, c8.Select(x => x.Id)?.ToList()??[] },
+                    { 9, c9.Select(x => x.Id)?.ToList()??[] },
+                    { 10, c10.Select(x => x.Id)?.ToList()??[] },
+                    { 11, c11.Select(x => x.Id)?.ToList()??[] },
+                    { 12, c12.Select(x => x.Id)?.ToList()??[] },
+                    { 13, c13.Select(x => x.Id)?.ToList()??[] },
+                    { 14, c14.Select(x => x.Id)?.ToList()??[] }
                 };
                 foreach (string item in DirectiveReplacerExtension.ExpandPlaceholders(Code, replacements))
                 {
@@ -506,7 +636,7 @@ namespace Alpha.ViewModels
                             Language = "FASTEXPR",
                             Visualization = false
                         },
-                        Regular = item
+                        Regular = Regex.Replace(item, @"(#.*|//.*)", string.Empty)
                     };
                     _alphaList.Add(simulationData);
                 }
@@ -553,7 +683,21 @@ namespace Alpha.ViewModels
                     "30"
                 ];
                 List<string> alphaExpressions = [];
-                List<string> companyFundamentals = await GetDataFields(new SearchScope(UserSettings.SimulationSettings.Region?.ToUpper(), UserSettings.SimulationSettings.DecisionDelay?.ToUpper(), UserSettings.SimulationSettings.Liquidity?.ToUpper(), UserSettings.SimulationSettings.Liquidity?.ToUpper()), datasetId: "fundamental6", token: token);
+                SearchScope searchScope = new(UserSettings.SimulationSettings.Region?.ToUpper(), UserSettings.SimulationSettings.DecisionDelay?.ToUpper(), UserSettings.SimulationSettings.Liquidity?.ToUpper(), UserSettings.SimulationSettings.Liquidity?.ToUpper());
+                List<DatasetIdResult> companyFundamentals = await GetDataFields(searchScope, datasetId: "analyst4", token: token);
+                companyFundamentals.AddRange(await GetDataFields(searchScope, datasetId: "fundamental2", token: token));
+                companyFundamentals.AddRange(await GetDataFields(searchScope, datasetId: "fundamental6", token: token));
+                companyFundamentals.AddRange(await GetDataFields(searchScope, datasetId: "model16", token: token));
+                companyFundamentals.AddRange(await GetDataFields(searchScope, datasetId: "model51", token: token));
+                companyFundamentals.AddRange(await GetDataFields(searchScope, datasetId: "news12", token: token));
+                companyFundamentals.AddRange(await GetDataFields(searchScope, datasetId: "news18", token: token));
+                companyFundamentals.AddRange(await GetDataFields(searchScope, datasetId: "option8", token: token));
+                companyFundamentals.AddRange(await GetDataFields(searchScope, datasetId: "option9", token: token));
+                companyFundamentals.AddRange(await GetDataFields(searchScope, datasetId: "pv1", token: token));
+                companyFundamentals.AddRange(await GetDataFields(searchScope, datasetId: "pv13", token: token));
+                companyFundamentals.AddRange(await GetDataFields(searchScope, datasetId: "univ1", token: token));
+                companyFundamentals.AddRange(await GetDataFields(searchScope, datasetId: "socialmedia12", token: token));
+                companyFundamentals.AddRange(await GetDataFields(searchScope, datasetId: "socialmedia8", token: token));
 
                 await Parallel.ForEachAsync(_groupCompareOp, async (gco, cancellationToken) =>
                 {
@@ -565,7 +709,7 @@ namespace Alpha.ViewModels
                             {
                                 await Parallel.ForEachAsync(_group, async (grp, cancellationToken) =>
                                 {
-                                    string expression = $"{gco}({tco}({cf}, {d}), {grp})";
+                                    string expression = $"{gco}({tco}({cf.Id}, {d}), {grp})";
                                     alphaExpressions.Add(expression);
                                     await Task.CompletedTask;
                                 });
@@ -576,6 +720,11 @@ namespace Alpha.ViewModels
 
                 foreach (string alphaExpression in alphaExpressions)
                 {
+                    if (string.IsNullOrWhiteSpace(alphaExpression))
+                    {
+                        continue;
+                    }
+
                     //string alphaExpression = $"group_rank({datafield.Id}/cap, subindustry)";
                     SimulationData simulationData = new()
                     {
@@ -595,7 +744,7 @@ namespace Alpha.ViewModels
                             Language = "FASTEXPR",//FASTEXPR
                             Visualization = false
                         },
-                        Regular = alphaExpression
+                        Regular = Regex.Replace(alphaExpression, @"(#.*|//.*)", string.Empty)
                     };
 
                     _alphaList.Add(simulationData);
@@ -609,7 +758,10 @@ namespace Alpha.ViewModels
                         return;
                     }
 
-                    _alphaList = [.. _alphaList.OrderBy(x => random.Next())];
+                    if (UserSettings.BackTestOrderIndex == 0)
+                    {
+                        _alphaList = [.. _alphaList.OrderBy(x => random.Next())];
+                    }
                 }, token);
             }
         }
@@ -622,6 +774,9 @@ namespace Alpha.ViewModels
             string url = "https://api.worldquantbrain.com/authentication";
             string authToken = Convert.ToBase64String(Encoding.ASCII.GetBytes($"{UserSettings.Email}:{UserSettings.Password}"));
             _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Basic", authToken);
+            _httpClient.DefaultRequestHeaders.Add("Origin", "https://platform.worldquantbrain.com");
+            _httpClient.DefaultRequestHeaders.Referrer = new Uri("https://platform.worldquantbrain.com/");
+            _httpClient.DefaultRequestHeaders.Add("priority", "u=1, i");
             _httpClient.DefaultRequestHeaders.Add("sec-ch-ua", "\"Microsoft Edge\";v=\"131\", \"Chromium\";v=\"131\", \"Not_A Brand\";v=\"24\"");
             _httpClient.DefaultRequestHeaders.Add("sec-ch-ua-mobile", "?0");
             _httpClient.DefaultRequestHeaders.Add("sec-ch-ua-platform", "\"Windows\"");
@@ -636,9 +791,11 @@ namespace Alpha.ViewModels
                 response = await _httpClient.PostAsync(url, null);
                 _ = response.EnsureSuccessStatusCode();
                 string responseBody = await response.Content.ReadAsStringAsync();
+                // REFERRAL  CONSULTANT  MULTI_SIMULATION  PROD_ALPHAS  VISUALIZATION  WORKDAY
                 WorldQuantAccountLoginResponse = JsonConvert.DeserializeObject<WorldQuantAccountLoginResponse>(responseBody);
                 Debug.WriteLine("Login successful: " + responseBody);
                 await LoadCompetition();
+                await LoadAlphaSummary();
                 await LoadKnowledge();
             }
             catch (HttpRequestException)
@@ -646,11 +803,6 @@ namespace Alpha.ViewModels
                 string errorContent = response != null ? await response.Content.ReadAsStringAsync() : "No response content";
                 Debug.WriteLine("Login failed: " + errorContent);
             }
-        }
-
-        private void MainViewModel_PropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
-        {
-
         }
 
         public async Task<DatasetResponse?> GetDataset()
@@ -665,6 +817,18 @@ namespace Alpha.ViewModels
             return JsonConvert.DeserializeObject<DatasetResponse>(responseBody);
         }
 
+        public async Task<OperatorItemResponse[]?> GetFunctions()
+        {
+            if (_httpClient == null || _httpClientHandler == null)
+            {
+                return null;
+            }
+
+            HttpResponseMessage response = await _httpClient.GetAsync("https://api.worldquantbrain.com/operators");
+            string responseBody = await response.Content.ReadAsStringAsync();
+            return JsonConvert.DeserializeObject<OperatorItemResponse[]>(responseBody);
+        }
+
         public async Task<FieldResponse?> GetField(string? id)
         {
             if (_httpClient == null || _httpClientHandler == null)
@@ -677,7 +841,7 @@ namespace Alpha.ViewModels
             return JsonConvert.DeserializeObject<FieldResponse>(responseBody);
         }
 
-        public async Task<List<string>> GetDataFields(SearchScope searchScope, string datasetId = "", string search = "", CancellationToken token = default)
+        public async Task<List<DatasetIdResult>> GetDataFields(SearchScope searchScope, string datasetId = "", string search = "", CancellationToken token = default)
         {
             if (_httpClient == null || _httpClientHandler == null)
             {
@@ -704,87 +868,85 @@ namespace Alpha.ViewModels
                     "&offset={0}";
 
             // Get count from initial request
-            HttpResponseMessage countResponse = await _httpClient.GetAsync(string.Format(urlTemplate, 0));
-            string countJson = await countResponse.Content.ReadAsStringAsync();
-            int count = JsonDocument.Parse(countJson).RootElement.GetProperty("count").GetInt32();
+            HttpResponseMessage countResponse = await _httpClient.GetAsync(string.Format(urlTemplate, 0), token);
+            string countJson = await countResponse.Content.ReadAsStringAsync(token);
+            DatasetIdResponse datasetIdResponse = JsonConvert.DeserializeObject<DatasetIdResponse>(countJson) ?? new DatasetIdResponse();
 
-            List<List<string>> datafieldsList = [];
-            JsonElement results = JsonDocument.Parse(countJson).RootElement.GetProperty("results");
-
-            List<string> batch = [];
-            foreach (JsonElement result in results.EnumerateArray())
+            List<DatasetIdResult> datafieldsList = [];
+            foreach (DatasetIdResult result in datasetIdResponse.Results ?? [])
             {
-                string? item = result.GetProperty("id").GetString();
-                if (!string.IsNullOrWhiteSpace(item))
-                {
-                    batch.Add(item);
-                }
+                datafieldsList.Add(result);
             }
-            datafieldsList.Add(batch);
 
             // Fetch data in batches
-            for (int x = 50; x < count; x += 50)
+            for (int x = 50; x < datasetIdResponse.Count; x += 50)
             {
                 if (token.IsCancellationRequested)
                 {
                     break;
                 }
-                HttpResponseMessage response = await _httpClient.GetAsync(string.Format(urlTemplate, x));
-                string content = await response.Content.ReadAsStringAsync();
-                results = JsonDocument.Parse(content).RootElement.GetProperty("results");
-
-                batch.Clear();
-                foreach (JsonElement result in results.EnumerateArray())
+                HttpResponseMessage response = await _httpClient.GetAsync(string.Format(urlTemplate, x), token);
+                string content = await response.Content.ReadAsStringAsync(token);
+                DatasetIdResponse results = JsonConvert.DeserializeObject<DatasetIdResponse>(content) ?? new DatasetIdResponse();
+                foreach (DatasetIdResult result in results.Results ?? [])
                 {
-                    string? item = result.GetProperty("id").GetString();
-                    if (!string.IsNullOrWhiteSpace(item))
-                    {
-                        batch.Add(item);
-                    }
+                    datafieldsList.Add(result);
                 }
-                datafieldsList.Add(batch);
             }
 
-            // Flatten the list
-            List<string> datafieldsListFlat = datafieldsList.SelectMany(x => x).ToList();
-            return datafieldsListFlat;
+            return datafieldsList;
         }
 
-        private async Task<bool> SubmitAlpha(string? alphaId)
+        private async Task<SubmitResult> SubmitAlpha(string? alphaId, CancellationToken token = default)
         {
-            if (_httpClient == null || _httpClientHandler == null || string.IsNullOrEmpty(alphaId))
+            SubmitResult submitResult = new();
+            if (_httpClient == null || string.IsNullOrEmpty(alphaId))
             {
-                return false;
+                submitResult.Message = "Alpha 不存在。";
+                return submitResult;
             }
 
             string url = $"https://api.worldquantbrain.com/alphas/{alphaId}/submit";
-            HttpResponseMessage response = await _httpClient.PostAsync(url, null);
+            HttpResponseMessage response = await _httpClient.PostAsync(url, null, token);
+
             if (response.StatusCode == HttpStatusCode.OK)
             {
-                return true;
+                submitResult.Success = true;
+                submitResult.Message = "提交成功。";
+                return submitResult;
+            }
+            else if (response.StatusCode != HttpStatusCode.Created)
+            {
+                submitResult.Message = "请求失败。(" + (int)response.StatusCode + ")";
+                return submitResult;
             }
 
-            string? getUrl = response.Headers.Location?.ToString();
-            if (string.IsNullOrEmpty(getUrl))
+            while (!token.IsCancellationRequested)
             {
-                return false;
-            }
-
-            while (true)
-            {
-                HttpResponseMessage getResponse = await _httpClient.GetAsync(getUrl);
+                HttpResponseMessage getResponse = await _httpClient.GetAsync(url, token);
 
                 if (getResponse.Headers.TryGetValues("Retry-After", out IEnumerable<string>? retryAfterValues))
                 {
                     string retryAfterStr = retryAfterValues.FirstOrDefault() ?? "0";
                     double retryAfterSec = double.Parse(retryAfterStr);
-                    await Task.Delay(TimeSpan.FromSeconds(retryAfterSec * 5));
+                    await Task.Delay(TimeSpan.FromSeconds(retryAfterSec * 5), token);
                 }
                 else
                 {
-                    return getResponse.StatusCode != HttpStatusCode.Forbidden;
+                    if (getResponse.StatusCode == HttpStatusCode.OK)
+                    {
+                        submitResult.Success = true;
+                        submitResult.Message = "提交成功。";
+                    }
+                    else
+                    {
+                        submitResult.Message = getResponse.StatusCode == HttpStatusCode.SeeOther ? "请稍后再试。(303)" : "请求失败。(" + (int)getResponse.StatusCode + ")";
+                    }
+                    return submitResult;
                 }
             }
+
+            return submitResult;
         }
 
         [DllImport("kernel32.dll")]

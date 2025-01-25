@@ -1,4 +1,5 @@
 ﻿using System.ComponentModel;
+using System.Net.Http;
 using Alpha.Models;
 using Alpha.ViewModels;
 using UIShell.Controls;
@@ -15,10 +16,11 @@ namespace Alpha.Views
             InitializeComponent();
         }
 
-        public AlphaInfoWindow(AlphaResponse? response) : this()
+        public AlphaInfoWindow(AlphaResponse? response, HttpClient? client) : this()
         {
             if (DataContext is AlphaInfoViewModel model)
             {
+                model.Client = client;
                 model.AlphaResponse = response;
                 model.CanSubmit = response?.Is?.Checks?.Any(delegate (AlphaCheck check)
                 {

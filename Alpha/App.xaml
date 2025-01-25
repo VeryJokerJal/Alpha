@@ -14,6 +14,7 @@
             <converters:IgnoreStatusVisibilityMultiConverter x:Key="IgnoreStatusVisibilityMultiConverter" />
             <ResourceDictionary.MergedDictionaries>
                 <XamlUIResources />
+                <ResourceDictionary Source="Resources/IconDictionary.xaml" />
             </ResourceDictionary.MergedDictionaries>
         </ResourceDictionary>
     </Application.Resources>

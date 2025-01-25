@@ -12,12 +12,9 @@ namespace Alpha.ViewModels
     {
         public HttpClient? Client { get; set; }
         public ICommand SubmitCommand { get; }
-        [Reactive]
-        public AlphaResponse? AlphaResponse { get; set; }
-        [Reactive]
-        public bool CancelSubmit { get; set; }
-        [Reactive]
-        public bool CanSubmit { get; set; }
+        [Reactive] public AlphaResponse? AlphaResponse { get; set; }
+        [Reactive] public bool CancelSubmit { get; set; }
+        [Reactive] public bool CanSubmit { get; set; }
 
         public AlphaInfoViewModel()
         {
@@ -33,7 +30,8 @@ namespace Alpha.ViewModels
                 return;
             }
 
-            if (await SubmitAlpha(AlphaResponse.Id))
+            SubmitResult result = await SubmitAlpha(AlphaResponse.Id);
+            if (result.Success)
             {
                 _ = MessageBox.Show("提交成功。", "提示", MessageBoxButton.OK, MessageBoxImage.Information);
             }
@@ -43,15 +41,17 @@ namespace Alpha.ViewModels
                 {
                     return;
                 }
-                _ = MessageBox.Show("提交失败。", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
+                _ = MessageBox.Show(result.Message, "错误", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
-        private async Task<bool> SubmitAlpha(string? alphaId)
+        private async Task<SubmitResult> SubmitAlpha(string? alphaId)
         {
+            SubmitResult submitResult = new();
             if (Client == null || string.IsNullOrEmpty(alphaId))
             {
-                return false;
+                submitResult.Message = "Alpha 不存在。";
+                return submitResult;
             }
 
             string url = $"https://api.worldquantbrain.com/alphas/{alphaId}/submit";
@@ -59,18 +59,19 @@ namespace Alpha.ViewModels
 
             if (response.StatusCode == HttpStatusCode.OK)
             {
-                return true;
+                submitResult.Success = true;
+                submitResult.Message = "提交成功。";
+                return submitResult;
             }
-
-            string? getUrl = response.Headers.Location?.ToString();
-            if (string.IsNullOrEmpty(getUrl))
+            else if (response.StatusCode != HttpStatusCode.Created)
             {
-                return false;
+                submitResult.Message = "请求失败。(" + (int)response.StatusCode + ")";
+                return submitResult;
             }
 
             while (!CancelSubmit)
             {
-                HttpResponseMessage getResponse = await Client.GetAsync(getUrl);
+                HttpResponseMessage getResponse = await Client.GetAsync(url);
 
                 if (getResponse.Headers.TryGetValues("Retry-After", out IEnumerable<string>? retryAfterValues))
                 {
@@ -80,11 +81,20 @@ namespace Alpha.ViewModels
                 }
                 else
                 {
-                    return getResponse.StatusCode != HttpStatusCode.Forbidden;
+                    if (getResponse.StatusCode == HttpStatusCode.OK)
+                    {
+                        submitResult.Success = true;
+                        submitResult.Message = "提交成功。";
+                    }
+                    else
+                    {
+                        submitResult.Message = getResponse.StatusCode == HttpStatusCode.SeeOther ? "请稍后再试。(303)" : "请求失败。(" + (int)getResponse.StatusCode + ")";
+                    }
+                    return submitResult;
                 }
             }
 
-            return false;
+            return submitResult;
         }
     }
 }

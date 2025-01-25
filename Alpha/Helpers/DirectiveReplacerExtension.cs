@@ -4,7 +4,7 @@ namespace Alpha.Helpers
 {
     public static class DirectiveReplacerExtension
     {
-        public static IEnumerable<string> ExpandPlaceholders(string input, Dictionary<int, List<string>> replacements)
+        public static IEnumerable<string> ExpandPlaceholders(string input, Dictionary<int, List<string?>> replacements)
         {
             MatchCollection matches = Regex.Matches(input, @"\$(\d+)");
             List<int> placeholderKeys = [];
@@ -18,8 +18,8 @@ namespace Alpha.Helpers
             }
 
             // Start with an empty combination
-            IEnumerable<IEnumerable<(int Key, string Value)>> combos =
-                new List<IEnumerable<(int, string)>> { Enumerable.Empty<(int, string)>() };
+            IEnumerable<IEnumerable<(int Key, string? Value)>> combos =
+                new List<IEnumerable<(int, string?)>> { Enumerable.Empty<(int, string?)>() };
 
             // Build combinations
             foreach (int key in placeholderKeys)
@@ -29,12 +29,12 @@ namespace Alpha.Helpers
             }
 
             // Replace placeholders in each combination
-            foreach (IEnumerable<(int Key, string Value)> combo in combos)
+            foreach (IEnumerable<(int Key, string? Value)> combo in combos)
             {
                 string result = input;
-                foreach ((int k, string v) in combo)
+                foreach ((int k, string? v) in combo)
                 {
-                    result = Regex.Replace(result, @"\$" + k + @"\b", v);
+                    result = Regex.Replace(result, @"\$" + k + @"\b", v ?? "", RegexOptions.IgnoreCase);
                 }
                 yield return result;
             }

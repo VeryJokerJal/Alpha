@@ -11,6 +11,7 @@ namespace Alpha.Properties
         [JsonProperty][Reactive] public string? Email { get; set; }
         [JsonProperty][Reactive] public string? Password { get; set; }
         [JsonProperty][Reactive] public int BackTestModeIndex { get; set; }
+        [JsonProperty][Reactive] public int BackTestOrderIndex { get; set; }
         [JsonProperty][Reactive] public int ProgrammingLanguageIndex { get; set; }
         [JsonProperty][Reactive] public int AssetClassIndex { get; set; }
         [JsonProperty][Reactive] public int RegionIndex { get; set; }
@@ -20,6 +21,7 @@ namespace Alpha.Properties
         [JsonProperty][Reactive] public int DataCleaningIndex { get; set; }
         [JsonProperty][Reactive] public int WarningThrowingIndex { get; set; }
         [JsonProperty][Reactive] public int MissingValueHandlingIndex { get; set; }
+        [JsonProperty][Reactive] public int LastExecuteIndex { get; set; }
         [JsonProperty][Reactive] public bool AutoSubmit { get; set; }
         [JsonProperty][Reactive] public bool IgnoreWarnings { get; set; }
         [JsonProperty][Reactive] public bool IgnoreErrors { get; set; }
